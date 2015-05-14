@@ -22,3 +22,15 @@ _testmain.go
 *.exe
 *.test
 *.prof
+
+*.dump
+*.log
+daemon/piped/piped
+etc/piped*.cf
+
+*.swp
+*.swo
+
+.DS_Store
+
+*.class
