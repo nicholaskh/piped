@@ -10,12 +10,14 @@ import (
 type LogStats map[string]map[int64]int
 
 type LogProc struct {
-	Stats LogStats
+	Stats   LogStats
+	flusher *Flusher
 }
 
-func NewLogProc() *LogProc {
+func NewLogProc(flusher *Flusher) *LogProc {
 	this := new(LogProc)
 	this.Stats = make(LogStats)
+	this.flusher = flusher
 
 	return this
 }
@@ -30,7 +32,7 @@ func (this *LogProc) Process(input []byte) {
 	logg := linePart[1]
 
 	switch tag {
-	case TAG_APACHE_500:
+	case TAG_APACHE_404, TAG_APACHE_500, TAG_NGINX_404, TAG_NGINX_500:
 		t := time.Now().Unix()
 		hr := t - t%int64(time.Hour/time.Second)
 		_, exists := this.Stats[tag]
@@ -39,10 +41,12 @@ func (this *LogProc) Process(input []byte) {
 			this.Stats[tag][hr] = 0
 		}
 		this.Stats[tag][hr]++
+
+	case TAG_ANY:
+		this.flusher.Enqueue(logg)
 	}
 
-	log.Info(this.Stats)
-
+	log.Debug(this.Stats)
 	log.Debug("tag: %s", tag)
 	log.Debug("log: %s", logg)
 }

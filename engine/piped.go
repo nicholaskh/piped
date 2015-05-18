@@ -18,9 +18,11 @@ func NewPiped(config *config.PipedConfig) *Piped {
 	this.config = config
 	this.server = server.NewTcpServer("piped")
 	this.serverStats = NewServerStats()
-	this.clientProcessor = NewPipedClientProcessor(this.server, this.serverStats)
 
-	this.flusher = NewFlusher(this.config.Mongo, this.clientProcessor.logProc.Stats, this.config.StatsFlushInterval)
+	this.flusher = NewFlusher(this.config.Mongo, this.config.StatsFlushInterval)
+	this.clientProcessor = NewPipedClientProcessor(this.server, this.serverStats, this.flusher)
+
+	this.flusher.RegisterStats(this.clientProcessor.logProc.Stats)
 
 	return this
 }

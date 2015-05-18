@@ -17,11 +17,11 @@ type PipedClientProcessor struct {
 	logProc     *LogProc
 }
 
-func NewPipedClientProcessor(server *server.TcpServer, serverStats *ServerStats) *PipedClientProcessor {
+func NewPipedClientProcessor(server *server.TcpServer, serverStats *ServerStats, flusher *Flusher) *PipedClientProcessor {
 	this := new(PipedClientProcessor)
 	this.server = server
 	this.serverStats = serverStats
-	this.logProc = NewLogProc()
+	this.logProc = NewLogProc(flusher)
 
 	return this
 }
