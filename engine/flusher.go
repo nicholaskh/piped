@@ -57,7 +57,7 @@ func (this *Flusher) flushStats() {
 }
 
 func (this *Flusher) flushLog(logg string) {
-	ts := time.Now().Format("2006-01-02 15:04:05")
+	ts := time.Now().Unix()
 	err := db.MgoSession(this.mongoConfig.Addr).DB("ffan_monitor").C("log").Insert(bson.M{"ts": ts, "log": logg})
 	if err != nil {
 		log.Error("flush stats error: %s", err.Error())
