@@ -10,4 +10,6 @@ const (
 	TAG_APACHE_404 = "apache_404"
 
 	TAG_ANY = "*"
+
+	TAG_ELAPSED = "elapsed"
 )

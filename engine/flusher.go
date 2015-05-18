@@ -47,8 +47,8 @@ func (this *Flusher) Serv() {
 
 func (this *Flusher) flushStats() {
 	for tag, stats := range this.stats {
-		for ts, count := range stats {
-			_, err := db.MgoSession(this.mongoConfig.Addr).DB("ffan_monitor").C("sys_stats").Upsert(bson.M{"tag": tag, "ts": ts}, bson.M{"tag": tag, "ts": ts, "count": count})
+		for ts, value := range stats {
+			_, err := db.MgoSession(this.mongoConfig.Addr).DB("ffan_monitor").C("sys_stats").Upsert(bson.M{"tag": tag, "ts": ts}, bson.M{"tag": tag, "ts": ts, "value": value})
 			if err != nil {
 				log.Error("flush stats error: %s", err.Error())
 			}
