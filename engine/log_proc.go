@@ -26,6 +26,7 @@ func NewLogProc(flusher *Flusher) *LogProc {
 
 func (this *LogProc) Process(input []byte) {
 	line := string(input)
+	log.Info(line)
 	linePart := strings.SplitN(line, LOG_SEP, 2)
 	if len(linePart) < 2 {
 		log.Error("Wrong format: %s", line)

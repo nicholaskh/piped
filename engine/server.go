@@ -1,10 +1,8 @@
 package engine
 
 import (
-	//	"encoding/json"
 	"io"
 	"net"
-	//	"strings"
 	"time"
 
 	"github.com/nicholaskh/golib/server"
@@ -32,9 +30,7 @@ func (this *PipedClientProcessor) OnAccept(client *server.Client) {
 			client.SetReadDeadline(time.Now().Add(this.server.SessTimeout))
 		}
 
-		input := make([]byte, 1460)
-		n, err := client.Conn.Read(input)
-		input = input[:n]
+		input, err := client.Proto.Read()
 
 		if err != nil {
 			err_, ok := err.(net.Error)
