@@ -58,7 +58,7 @@ func (this *LogProc) Process(input []byte) {
 		ts := time.Now().Unix()
 		min := ts - ts%60
 		tagElapsed := fmt.Sprintf("%s|%s", tag, uri)
-		tagElapsedCount := fmt.Sprintf("%s|count", tagElapsed)
+		tagElapsedCount := fmt.Sprintf("%s_count|%s", tag, uri)
 		if _, exists := this.Stats[tagElapsed]; !exists {
 			this.Stats[tagElapsed] = make(map[int64]interface{})
 		}
