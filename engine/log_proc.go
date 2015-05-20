@@ -26,7 +26,7 @@ func NewLogProc(flusher *Flusher) *LogProc {
 
 func (this *LogProc) Process(input []byte) {
 	line := string(input)
-	log.Info(line)
+	log.Debug(line)
 	linePart := strings.SplitN(line, LOG_SEP, 2)
 	if len(linePart) < 2 {
 		log.Error("Wrong format: %s", line)
@@ -43,7 +43,14 @@ func (this *LogProc) Process(input []byte) {
 			this.Stats[tag] = make(map[int64]interface{})
 			this.Stats[tag][hr] = 0
 		}
-		this.Stats[tag][hr] = this.Stats[tag][hr].(int) + 1
+		var value int
+		valueI, exists := this.Stats[tag][hr]
+		if !exists {
+			value = 0
+		} else {
+			value = valueI.(int)
+		}
+		this.Stats[tag][hr] = value + 1
 	case TAG_ANY:
 		this.flusher.Enqueue(logg)
 	case TAG_ELAPSED:

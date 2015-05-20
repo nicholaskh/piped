@@ -27,7 +27,7 @@ func NewPipedClientProcessor(server *server.TcpServer, serverStats *ServerStats,
 func (this *PipedClientProcessor) OnAccept(client *server.Client) {
 	for {
 		if this.server.SessTimeout.Nanoseconds() > int64(0) {
-			client.SetReadDeadline(time.Now().Add(this.server.SessTimeout))
+			client.Proto.SetReadDeadline(time.Now().Add(this.server.SessTimeout))
 		}
 
 		input, err := client.Proto.Read()
@@ -41,7 +41,7 @@ func (this *PipedClientProcessor) OnAccept(client *server.Client) {
 				}
 			}
 			if err == io.EOF {
-				log.Info("Client %s closed the connection", client.RemoteAddr().String())
+				log.Info("Client %s closed the connection", client.Proto.RemoteAddr().String())
 				break
 			} else {
 				log.Error(err.Error())
