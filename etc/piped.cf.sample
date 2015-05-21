@@ -1,0 +1,20 @@
+{
+	listen_addr: ":5687"
+	session_timeout: "2m"
+	
+	stats_listen_addr: ":9030"
+	prof_listen_addr: ":9031"
+	
+	metrics_logfile: "metrics.log"
+	stats_output_interval: "2m"
+	
+	stats_flush_interval: "5s"
+	
+	mongodb: {
+		addr: "127.0.0.1:27017"
+		conn_timeout: "5s"
+		sync_timeout: "5s"
+		operation_timeout: "5s"
+	}
+
+}
