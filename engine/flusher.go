@@ -46,11 +46,16 @@ func (this *Flusher) Serv() {
 }
 
 func (this *Flusher) flushStats() {
+	curTs := time.Now().Unix() - time.Now().Unix()%STATS_COUNT_INTERVAL
 	for tag, stats := range this.stats {
 		for ts, value := range stats {
-			_, err := db.MgoSession(this.mongoConfig.Addr).DB("ffan_monitor").C("sys_stats").Upsert(bson.M{"tag": tag, "ts": ts}, bson.M{"tag": tag, "ts": ts, "value": value})
-			if err != nil {
-				log.Error("flush stats error: %s", err.Error())
+			if ts < curTs {
+				delete(stats, ts)
+			} else {
+				_, err := db.MgoSession(this.mongoConfig.Addr).DB("ffan_monitor").C("sys_stats").Upsert(bson.M{"tag": tag, "ts": ts}, bson.M{"tag": tag, "ts": ts, "value": value})
+				if err != nil {
+					log.Error("flush stats error: %s", err.Error())
+				}
 			}
 		}
 	}

@@ -3,6 +3,8 @@ package engine
 const (
 	LOG_SEP = "|"
 
+	STATS_COUNT_INTERVAL = 60 //second
+
 	TAG_NGINX_500 = "nginx_500"
 	TAG_NGINX_404 = "nginx_404"
 

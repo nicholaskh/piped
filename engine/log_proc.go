@@ -7,21 +7,47 @@ import (
 	"strings"
 	"time"
 
+	"github.com/nicholaskh/golib/db"
 	log "github.com/nicholaskh/log4go"
+	"github.com/nicholaskh/piped/config"
+	"labix.org/v2/mgo"
+	"labix.org/v2/mgo/bson"
 )
 
 type LogStats map[string]map[int64]interface{}
 
 type LogProc struct {
-	Stats   LogStats
-	flusher *Flusher
+	Stats       LogStats
+	flusher     *Flusher
+	mongoConfig *config.MongoConfig
 }
 
-func NewLogProc(flusher *Flusher) *LogProc {
+func NewLogProc(flusher *Flusher, mongoConfig *config.MongoConfig) *LogProc {
 	this := new(LogProc)
+	this.mongoConfig = mongoConfig
 	this.Stats = make(LogStats)
+	this.loadStats(time.Now().Unix() - time.Now().Unix()%STATS_COUNT_INTERVAL)
 	this.flusher = flusher
 	return this
+}
+
+func (this *LogProc) loadStats(ts int64) {
+	var result []interface{}
+	err := db.MgoSession(this.mongoConfig.Addr).DB("ffan_monitor").C("sys_stats").Find(bson.M{"ts": time.Now().Unix() - time.Now().Unix()%STATS_COUNT_INTERVAL}).Select(bson.M{"_id": 0}).All(&result)
+	if err != nil && err != mgo.ErrNotFound {
+		log.Error("load sys_stats error: %s", err.Error())
+	}
+	for _, vI := range result {
+		v := vI.(bson.M)
+		tag := v["tag"].(string)
+		ts := v["ts"].(int64)
+		value := v["value"]
+		_, exists := this.Stats[tag]
+		if !exists {
+			this.Stats[tag] = make(map[int64]interface{})
+		}
+		this.Stats[tag][ts] = value
+	}
 }
 
 func (this *LogProc) Process(input []byte) {
@@ -67,8 +93,7 @@ func (this *LogProc) Process(input []byte) {
 			}
 			uri := logPart[1]
 			elapsed, _ := strconv.ParseFloat(logPart[2], 64)
-			ts := time.Now().Unix()
-			min := ts - ts%60
+			min := time.Now().Unix() - time.Now().Unix()%STATS_COUNT_INTERVAL
 			tagElapsed := fmt.Sprintf("%s|%s", tag, uri)
 			tagElapsedCount := fmt.Sprintf("%s_count|%s", tag, uri)
 			if _, exists := this.Stats[tagElapsed]; !exists {

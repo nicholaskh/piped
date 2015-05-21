@@ -7,6 +7,7 @@ import (
 
 	"github.com/nicholaskh/golib/server"
 	log "github.com/nicholaskh/log4go"
+	"github.com/nicholaskh/piped/config"
 )
 
 type PipedClientProcessor struct {
@@ -19,7 +20,7 @@ func NewPipedClientProcessor(server *server.TcpServer, serverStats *ServerStats,
 	this := new(PipedClientProcessor)
 	this.server = server
 	this.serverStats = serverStats
-	this.logProc = NewLogProc(flusher)
+	this.logProc = NewLogProc(flusher, config.PipedConf.Mongo)
 
 	return this
 }
