@@ -11,5 +11,6 @@ const (
 	TAG_APACHE_500 = "apache_500"
 	TAG_APACHE_404 = "apache_404"
 
-	TAG_APP = "app"
+	TAG_APP     = "app"
+	TAG_ELAPSED = "elapsed"
 )
