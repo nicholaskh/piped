@@ -8,7 +8,14 @@
 	metrics_logfile: "metrics.log"
 	stats_output_interval: "2m"
 	
-	stats_flush_interval: "5s"
+	flusher: {
+		stats_flush_interval: "5s"
+	
+		//0: flush every entry comes
+		//1: flush between interval
+		log_flush_type: 1
+		log_flush_interval: "1s"
+	}
 	
 	mongodb: {
 		addr: "127.0.0.1:27017"

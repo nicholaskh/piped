@@ -10,6 +10,7 @@ import (
 	"github.com/nicholaskh/golib/db"
 	log "github.com/nicholaskh/log4go"
 	"github.com/nicholaskh/piped/config"
+	. "github.com/nicholaskh/piped/global"
 	"labix.org/v2/mgo"
 	"labix.org/v2/mgo/bson"
 )

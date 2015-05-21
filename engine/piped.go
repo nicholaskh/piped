@@ -19,7 +19,7 @@ func NewPiped(config *config.PipedConfig) *Piped {
 	this.server = server.NewTcpServer("piped")
 	this.serverStats = NewServerStats()
 
-	this.flusher = NewFlusher(this.config.Mongo, this.config.StatsFlushInterval)
+	this.flusher = NewFlusher(this.config.Mongo, this.config.Flusher, this.config.StatsFlushInterval)
 	this.clientProcessor = NewPipedClientProcessor(this.server, this.serverStats, this.flusher)
 
 	this.flusher.RegisterStats(this.clientProcessor.logProc.Stats)
@@ -32,4 +32,7 @@ func (this *Piped) RunForever() {
 	go this.serverStats.Start(this.config.StatsOutputInterval, this.config.MetricsLogfile)
 
 	this.flusher.Serv()
+
+	done := make(chan int)
+	<-done
 }

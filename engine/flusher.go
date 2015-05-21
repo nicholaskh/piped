@@ -1,11 +1,13 @@
 package engine
 
 import (
+	"sync/atomic"
 	"time"
 
 	"github.com/nicholaskh/golib/db"
 	log "github.com/nicholaskh/log4go"
 	"github.com/nicholaskh/piped/config"
+	. "github.com/nicholaskh/piped/global"
 	"labix.org/v2/mgo/bson"
 )
 
@@ -13,12 +15,15 @@ type Flusher struct {
 	mongoConfig        *config.MongoConfig
 	stats              LogStats
 	statsFlushInterval time.Duration
-	queue              chan string
+	config             *config.FlusherConfig
+
+	queue chan string
 }
 
-func NewFlusher(mongoConfig *config.MongoConfig, statsFlushInterval time.Duration) *Flusher {
+func NewFlusher(mongoConfig *config.MongoConfig, flusherConfig *config.FlusherConfig, statsFlushInterval time.Duration) *Flusher {
 	this := new(Flusher)
 	this.mongoConfig = mongoConfig
+	this.config = flusherConfig
 	this.statsFlushInterval = statsFlushInterval
 	this.queue = make(chan string, 100000)
 
@@ -34,15 +39,37 @@ func (this *Flusher) Enqueue(logg string) {
 }
 
 func (this *Flusher) Serv() {
-	for {
-		select {
-		case <-time.Tick(this.statsFlushInterval):
-			log.Debug(this.stats)
-			this.flushStats()
-		case logg := <-this.queue:
-			this.flushLog(logg)
+	go func() {
+		for {
+			select {
+			case <-time.Tick(this.statsFlushInterval):
+				log.Debug(this.stats)
+				this.flushStats()
+			}
 		}
-	}
+	}()
+	go func() {
+		switch this.config.LogFlushType {
+		case LOG_FLUSH_TYPE_EACH:
+			for {
+				select {
+				case logg := <-this.queue:
+					this.flushLog(logg)
+				}
+			}
+		case LOG_FLUSH_TYPE_INTERVAL:
+			for {
+				var i int32
+				select {
+				case <-time.Tick(this.config.LogFlushInterval):
+					if atomic.CompareAndSwapInt32(&i, 0, 1) {
+						this.flushLogBatch()
+						i = 0
+					}
+				}
+			}
+		}
+	}()
 }
 
 func (this *Flusher) flushStats() {
@@ -66,5 +93,22 @@ func (this *Flusher) flushLog(logg string) {
 	err := db.MgoSession(this.mongoConfig.Addr).DB("ffan_monitor").C("log").Insert(bson.M{"ts": ts, "log": logg})
 	if err != nil {
 		log.Error("flush stats error: %s", err.Error())
+	}
+}
+
+func (this *Flusher) flushLogBatch() {
+	logCount := len(this.queue)
+	if logCount > 0 {
+		records := make([]interface{}, 0)
+		// TODO ts should be the time when the log was collected, if log_flush_interval is too long, ts may be wrong
+		ts := time.Now().Unix()
+		for i := 0; i < logCount; i++ {
+			logg := <-this.queue
+			records = append(records, bson.M{"ts": ts, "log": logg})
+		}
+		err := db.MgoSession(this.mongoConfig.Addr).DB("ffan_monitor").C("log").Insert(records...)
+		if err != nil {
+			log.Error("flush log error: %s", err.Error())
+		}
 	}
 }

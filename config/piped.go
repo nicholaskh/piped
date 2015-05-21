@@ -22,7 +22,8 @@ type PipedConfig struct {
 
 	StatsFlushInterval time.Duration
 
-	Mongo *MongoConfig
+	Mongo   *MongoConfig
+	Flusher *FlusherConfig
 }
 
 func (this *PipedConfig) LoadConfig(cf *conf.Conf) {
@@ -43,4 +44,11 @@ func (this *PipedConfig) LoadConfig(cf *conf.Conf) {
 		panic("Mongodb config not found")
 	}
 	this.Mongo.LoadConfig(section)
+
+	this.Flusher = new(FlusherConfig)
+	section, err = cf.Section("flusher")
+	if err != nil {
+		panic("Flusher config not found")
+	}
+	this.Flusher.LoadConfig(section)
 }

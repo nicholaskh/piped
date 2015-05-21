@@ -1,8 +1,9 @@
 package config
 
 import (
-	conf "github.com/nicholaskh/jsconf"
 	"time"
+
+	conf "github.com/nicholaskh/jsconf"
 )
 
 type MongoConfig struct {
