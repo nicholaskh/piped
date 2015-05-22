@@ -93,7 +93,7 @@ func (this *LogProc) Process(input []byte) {
 				break
 			}
 			uri := logPart[1]
-			if uri = this.filterUri(uri); uri != "" {
+			if uri = this.filterUri(uri); uri == "" {
 				return
 			}
 			elapsed, _ := strconv.ParseFloat(logPart[2], 64)
