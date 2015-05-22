@@ -131,9 +131,11 @@ func (this *LogProc) filterUri(uri string) (uriFiltered string) {
 	}
 	if this.config.ElapsedUriPathPrefix != nil {
 		for _, prefix := range this.config.ElapsedUriPathPrefix {
-			uriFiltered = prefix
-			return
+			if strings.HasPrefix(uri, prefix) {
+				uriFiltered = prefix
+				return
+			}
 		}
 	}
-	return ""
+	return uri
 }
