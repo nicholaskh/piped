@@ -92,6 +92,9 @@ func (this *LogProc) Process(input []byte) {
 				break
 			}
 			uri := logPart[1]
+			if uri = this.filterUri(uri); uri != "" {
+				return
+			}
 			elapsed, _ := strconv.ParseFloat(logPart[2], 64)
 			min := time.Now().Truncate(this.config.ElapsedCountInterval).Unix()
 			tagElapsed := fmt.Sprintf("%s|%s", TAG_ELAPSED, uri)
@@ -119,4 +122,17 @@ func (this *LogProc) Process(input []byte) {
 	log.Debug(this.Stats)
 	log.Debug("tag: %s", tag)
 	log.Debug("log: %s", logg)
+}
+
+func (this *LogProc) filterUri(uri string) (uriFiltered string) {
+	if strings.HasSuffix(uri, ".html") {
+		return ""
+	}
+	if this.config.ElapsedUriPathPrefix != nil {
+		for _, prefix := range this.config.ElapsedUriPathPrefix {
+			uriFiltered = prefix
+			return
+		}
+	}
+	return ""
 }

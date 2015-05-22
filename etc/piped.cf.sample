@@ -27,6 +27,11 @@
 	stats: {
 		stats_count_interval: "1h"
 		elapsed_count_interval: "5m"
+		
+		// if uri matches the path prefix, use the prefix instead of the whole path
+		elapsed_uri_path_prefix: [
+			"/goods/"
+		]
 	}
 
 }
