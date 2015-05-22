@@ -3,10 +3,14 @@ package main
 import (
 	"fmt"
 	"os"
+	"runtime/debug"
+	"syscall"
 	"time"
 
 	"github.com/nicholaskh/golib/locking"
 	"github.com/nicholaskh/golib/server"
+	"github.com/nicholaskh/golib/signal"
+	log "github.com/nicholaskh/log4go"
 	"github.com/nicholaskh/piped/config"
 	"github.com/nicholaskh/piped/engine"
 )
@@ -38,14 +42,39 @@ func init() {
 		locking.LockInstance(options.lockFile)
 	}
 
+	signal.RegisterSignalHandler(syscall.SIGINT, func(sig os.Signal) {
+		shutdown()
+	})
+
 	conf := server.LoadConfig(options.configFile)
 	config.PipedConf = new(config.PipedConfig)
 	config.PipedConf.LoadConfig(conf)
 }
 
 func main() {
+	defer func() {
+		cleanup()
+
+		if err := recover(); err != nil {
+			fmt.Println(err)
+			debug.PrintStack()
+		}
+	}()
 	go server.RunSysStats(time.Now(), time.Duration(options.tick)*time.Second)
 
 	piped := engine.NewPiped(config.PipedConf)
 	piped.RunForever()
+}
+
+func shutdown() {
+	cleanup()
+	log.Info("Terminated")
+	os.Exit(0)
+}
+
+func cleanup() {
+	if options.lockFile != "" {
+		locking.UnlockInstance(options.lockFile)
+		log.Debug("Cleanup lock %s", options.lockFile)
+	}
 }

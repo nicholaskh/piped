@@ -12,19 +12,19 @@ import (
 )
 
 type Flusher struct {
-	mongoConfig        *config.MongoConfig
-	stats              LogStats
-	statsFlushInterval time.Duration
-	config             *config.FlusherConfig
+	mongoConfig *config.MongoConfig
+	stats       LogStats
+	config      *config.FlusherConfig
+	purgeTime   time.Duration
 
 	queue chan string
 }
 
-func NewFlusher(mongoConfig *config.MongoConfig, flusherConfig *config.FlusherConfig, statsFlushInterval time.Duration) *Flusher {
+func NewFlusher(mongoConfig *config.MongoConfig, flusherConfig *config.FlusherConfig, purgeTime time.Duration) *Flusher {
 	this := new(Flusher)
 	this.mongoConfig = mongoConfig
 	this.config = flusherConfig
-	this.statsFlushInterval = statsFlushInterval
+	this.purgeTime = purgeTime
 	this.queue = make(chan string, 100000)
 
 	return this
@@ -42,7 +42,7 @@ func (this *Flusher) Serv() {
 	go func() {
 		for {
 			select {
-			case <-time.Tick(this.statsFlushInterval):
+			case <-time.Tick(this.config.StatsFlushInterval):
 				log.Debug(this.stats)
 				this.flushStats()
 			}
@@ -73,10 +73,10 @@ func (this *Flusher) Serv() {
 }
 
 func (this *Flusher) flushStats() {
-	curTs := time.Now().Truncate(this.config.StatsFlushInterval).Unix()
+	purgeTs := time.Now().Truncate(this.purgeTime).Unix()
 	for tag, stats := range this.stats {
 		for ts, value := range stats {
-			if ts < curTs {
+			if ts < purgeTs {
 				delete(stats, ts)
 			} else {
 				_, err := db.MgoSession(this.mongoConfig.Addr).DB("ffan_monitor").C("sys_stats").Upsert(bson.M{"tag": tag, "ts": ts}, bson.M{"tag": tag, "ts": ts, "value": value})

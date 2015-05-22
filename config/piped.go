@@ -20,8 +20,6 @@ type PipedConfig struct {
 	MetricsLogfile      string
 	StatsOutputInterval time.Duration
 
-	StatsFlushInterval time.Duration
-
 	Mongo   *MongoConfig
 	Flusher *FlusherConfig
 	Stats   *StatsConfig
@@ -36,8 +34,6 @@ func (this *PipedConfig) LoadConfig(cf *conf.Conf) {
 
 	this.MetricsLogfile = cf.String("metrics_logfile", "metrics.log")
 	this.StatsOutputInterval = cf.Duration("stats_output_interval", time.Minute*10)
-
-	this.StatsFlushInterval = cf.Duration("stats_flush_interval", time.Second*10)
 
 	this.Mongo = new(MongoConfig)
 	section, err := cf.Section("mongodb")

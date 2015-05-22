@@ -1,6 +1,8 @@
 package engine
 
 import (
+	"time"
+
 	"github.com/nicholaskh/golib/server"
 	"github.com/nicholaskh/piped/config"
 )
@@ -19,7 +21,13 @@ func NewPiped(config *config.PipedConfig) *Piped {
 	this.server = server.NewTcpServer("piped")
 	this.serverStats = NewServerStats()
 
-	this.flusher = NewFlusher(this.config.Mongo, this.config.Flusher, this.config.StatsFlushInterval)
+	var maxInterval time.Duration
+	if this.config.Stats.StatsCountInterval > this.config.Stats.ElapsedCountInterval {
+		maxInterval = this.config.Stats.StatsCountInterval
+	} else {
+		maxInterval = this.config.Stats.ElapsedCountInterval
+	}
+	this.flusher = NewFlusher(this.config.Mongo, this.config.Flusher, maxInterval)
 	this.clientProcessor = NewPipedClientProcessor(this.server, this.serverStats, this.flusher)
 
 	this.flusher.RegisterStats(this.clientProcessor.logProc.Stats)
