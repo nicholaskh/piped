@@ -30,11 +30,10 @@ PATH=/usr/local/sbin:/usr/local/bin:/sbin:/bin:/usr/sbin:/usr/bin
 
 PIPED_HOME=/var/wd/piped
 DAEMON=$PIPED_HOME/bin/piped
-PIDFILE=$PIPED_HOME/var/piped.pid
 CONFIGFILE=$PIPED_HOME/etc/piped.cf
 LOGFILE=$PIPED_HOME/var/piped.log
 CRASHLOG=$PIPED_HOME/panic.dump
-LOCKFILE=$PIPED_HOME/var/piped.lock
+LOCKFILE=$PIPED_HOME/var/piped.pid
 
 test -f $DAEMON || exit 0
 test -f $CONFIGFILE || exit 0
@@ -45,12 +44,11 @@ test -f $CONFIGFILE || exit 0
 DAEMON_COREFILE_LIMIT=unlimited
 
 start() {
-    touch $PIDFILE 
     cd $PIPED_HOME
     ulimit -n 40960
     ulimit -c unlimited
     ulimit -l unlimited
-    daemon --pidfile PIDFILE "/usr/sbin/daemonize $DAEMON -conf $CONFIGFILE -crashlog $CRASHLOG -log $LOGFILE -lockfile $LOCKFILE -level trace"
+    daemon "/usr/sbin/daemonize $DAEMON -conf $CONFIGFILE -crashlog $CRASHLOG -log $LOGFILE -lockfile $LOCKFILE -level trace"
     errcode=$?
     return $errcode
 }
@@ -62,7 +60,7 @@ stop() {
 }
 
 running() {
-    pidofproc -p $PIDFILE $DAEMON >/dev/null
+    pidofproc -p $LOCKFILE $DAEMON >/dev/null
     errcode=$?
     return $errcode
 }
