@@ -23,5 +23,10 @@
 		sync_timeout: "5s"
 		operation_timeout: "5s"
 	}
+	
+	stats: {
+		stats_count_interval: "1h"
+		elapsed_count_interval: "5m"
+	}
 
 }

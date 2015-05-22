@@ -24,6 +24,7 @@ type PipedConfig struct {
 
 	Mongo   *MongoConfig
 	Flusher *FlusherConfig
+	Stats   *StatsConfig
 }
 
 func (this *PipedConfig) LoadConfig(cf *conf.Conf) {
@@ -51,4 +52,11 @@ func (this *PipedConfig) LoadConfig(cf *conf.Conf) {
 		panic("Flusher config not found")
 	}
 	this.Flusher.LoadConfig(section)
+
+	this.Stats = new(StatsConfig)
+	section, err = cf.Section("stats")
+	if err != nil {
+		panic("Stats config not found")
+	}
+	this.Stats.LoadConfig(section)
 }

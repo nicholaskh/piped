@@ -20,7 +20,7 @@ func NewPipedClientProcessor(server *server.TcpServer, serverStats *ServerStats,
 	this := new(PipedClientProcessor)
 	this.server = server
 	this.serverStats = serverStats
-	this.logProc = NewLogProc(flusher, config.PipedConf.Mongo)
+	this.logProc = NewLogProc(config.PipedConf.Stats, flusher, config.PipedConf.Mongo)
 
 	return this
 }

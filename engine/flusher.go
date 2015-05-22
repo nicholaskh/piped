@@ -73,7 +73,7 @@ func (this *Flusher) Serv() {
 }
 
 func (this *Flusher) flushStats() {
-	curTs := time.Now().Unix() - time.Now().Unix()%STATS_COUNT_INTERVAL
+	curTs := time.Now().Truncate(this.config.StatsFlushInterval).Unix()
 	for tag, stats := range this.stats {
 		for ts, value := range stats {
 			if ts < curTs {
