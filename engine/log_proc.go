@@ -26,6 +26,7 @@ type LogProc struct {
 
 func NewLogProc(config *config.StatsConfig, flusher *Flusher, mongoConfig *config.MongoConfig) *LogProc {
 	this := new(LogProc)
+	this.config = config
 	this.mongoConfig = mongoConfig
 	this.Stats = make(LogStats)
 	this.loadStats(time.Now().Truncate(this.config.ElapsedCountInterval).Unix())

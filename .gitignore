@@ -34,3 +34,6 @@ etc/piped*.cf
 .DS_Store
 
 *.class
+
+*.lock
+*.pid
