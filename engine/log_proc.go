@@ -88,7 +88,7 @@ func (this *LogProc) Process(input []byte) {
 			//NOTICE: 15-05-15 14:51:53 errno[0] client[10.1.171.230] uri[/] user[] refer[http://10.1.169.16:12620/] cookie[U_UID=ced4bf452fea42b0853597fb6430e819; PHPSESSID=781f9621e47a41bbb15c4852f97c84af; SESSIONID=781f9621e47a41bbb15c4852f97c84af; CITY_ID=110100; PLAZA_ID=1000772] post[] ts[0.12319707870483]  f_redis[1]
 			reg := regexp.MustCompile(`uri\[([^\?#\]]+)[^\]]*\].*ts\[([\d\.]+)\]`)
 			subMatch := reg.FindAllStringSubmatch(logg, -1)
-			if len(subMatch) < 1 && len(subMatch[0]) < 3 {
+			if len(subMatch) < 1 || len(subMatch[0]) < 3 {
 				log.Warn("elapsed log format error: %s", logg)
 				break
 			}
