@@ -126,7 +126,7 @@ func (this *LogProc) Process(input []byte) {
 }
 
 func (this *LogProc) filterUri(uri string) (uriFiltered string) {
-	if strings.HasSuffix(uri, ".html") {
+	if strings.HasSuffix(uri, ".html") || strings.HasSuffix(uri, ".png") || strings.HasSuffix(uri, ".gif") || strings.HasSuffix(uri, ".jpg") {
 		return ""
 	}
 	if this.config.ElapsedUriPathPrefix != nil {
