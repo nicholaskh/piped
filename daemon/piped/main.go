@@ -3,6 +3,7 @@ package main
 import (
 	"fmt"
 	"os"
+	"runtime"
 	"runtime/debug"
 	"syscall"
 	"time"
@@ -60,6 +61,9 @@ func main() {
 			debug.PrintStack()
 		}
 	}()
+
+	runtime.GOMAXPROCS(runtime.NumCPU())
+
 	go server.RunSysStats(time.Now(), time.Duration(options.tick)*time.Second)
 
 	piped := engine.NewPiped(config.PipedConf)

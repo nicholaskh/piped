@@ -50,12 +50,12 @@ func (this *PipedClientProcessor) OnAccept(client *server.Client) {
 			}
 		}
 
-		this.OnRead(client, input)
+		go this.OnRead(input)
 	}
 	client.Close()
 }
 
-func (this *PipedClientProcessor) OnRead(client *server.Client, input []byte) {
+func (this *PipedClientProcessor) OnRead(input []byte) {
 	var (
 		t1      time.Time
 		elapsed time.Duration
@@ -66,9 +66,8 @@ func (this *PipedClientProcessor) OnRead(client *server.Client, input []byte) {
 	this.logProc.Process(input)
 
 	elapsed = time.Since(t1)
-	this.serverStats.CallLatencies.Update(elapsed.Nanoseconds() / 1e6)
+	this.serverStats.CallLatencies.Update(elapsed.Nanoseconds() / 1e3)
 	this.serverStats.CallPerSecond.Mark(1)
-
 }
 
 type TinyFluentRecord struct {

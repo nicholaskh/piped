@@ -5,6 +5,7 @@ import (
 	"regexp"
 	"strconv"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/nicholaskh/golib/db"
@@ -22,6 +23,8 @@ type LogProc struct {
 	Stats       LogStats
 	flusher     *Flusher
 	mongoConfig *config.MongoConfig
+	appReg      *regexp.Regexp
+	statsLock   sync.Mutex
 }
 
 func NewLogProc(config *config.StatsConfig, flusher *Flusher, mongoConfig *config.MongoConfig) *LogProc {
@@ -31,6 +34,8 @@ func NewLogProc(config *config.StatsConfig, flusher *Flusher, mongoConfig *confi
 	this.Stats = make(LogStats)
 	this.loadStats(time.Now().Truncate(this.config.ElapsedCountInterval).Unix())
 	this.flusher = flusher
+	//NOTICE: 15-05-15 14:51:53 errno[0] client[10.1.171.230] uri[/] user[] refer[http://10.1.169.16:12620/] cookie[U_UID=ced4bf452fea42b0853597fb6430e819; PHPSESSID=781f9621e47a41bbb15c4852f97c84af; SESSIONID=781f9621e47a41bbb15c4852f97c84af; CITY_ID=110100; PLAZA_ID=1000772] post[] ts[0.12319707870483]  f_redis[1]
+	this.appReg = regexp.MustCompile(`uri\[([^\?#\]]+)[^\]]*\].*ts\[([\d\.]+)\]`)
 	return this
 }
 
@@ -85,9 +90,7 @@ func (this *LogProc) Process(input []byte) {
 			this.flusher.Enqueue(logg)
 		} else if strings.HasPrefix(logg, "NOTICE") {
 			//doing statistic of elapsed
-			//NOTICE: 15-05-15 14:51:53 errno[0] client[10.1.171.230] uri[/] user[] refer[http://10.1.169.16:12620/] cookie[U_UID=ced4bf452fea42b0853597fb6430e819; PHPSESSID=781f9621e47a41bbb15c4852f97c84af; SESSIONID=781f9621e47a41bbb15c4852f97c84af; CITY_ID=110100; PLAZA_ID=1000772] post[] ts[0.12319707870483]  f_redis[1]
-			reg := regexp.MustCompile(`uri\[([^\?#\]]+)[^\]]*\].*ts\[([\d\.]+)\]`)
-			subMatch := reg.FindAllStringSubmatch(logg, -1)
+			subMatch := this.appReg.FindAllStringSubmatch(logg, -1)
 			if len(subMatch) < 1 || len(subMatch[0]) < 3 {
 				log.Warn("elapsed log format error: %s", logg)
 				break
@@ -107,6 +110,7 @@ func (this *LogProc) Process(input []byte) {
 			if !exists {
 				oElapsed = float64(0)
 			}
+			this.statsLock.Lock()
 			if _, exists := this.Stats[tagElapsedCount]; !exists {
 				this.Stats[tagElapsedCount] = make(map[int64]interface{})
 			}
@@ -114,9 +118,10 @@ func (this *LogProc) Process(input []byte) {
 			if !exists {
 				elapsedCountCur = 0
 			}
-			avgElapsed := (oElapsed.(float64) + elapsed) / float64(elapsedCountCur.(int)+1)
+			avgElapsed := (oElapsed.(float64)*float64(elapsedCountCur.(int)) + elapsed) / float64(elapsedCountCur.(int)+1)
 			this.Stats[tagElapsedCount][min] = elapsedCountCur.(int) + 1
 			this.Stats[tagElapsed][min] = avgElapsed
+			this.statsLock.Unlock()
 		}
 	}
 

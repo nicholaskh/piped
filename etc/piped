@@ -67,7 +67,9 @@ running() {
 
 case $1 in
     start)
-        if running ; then
+        running
+        running=$?
+        if [[ $(running) || -f "$LOCKFILE" ]] ; then
             warning && echo "piped-daemon is already started"
             exit 0
         fi
