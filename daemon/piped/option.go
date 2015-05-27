@@ -14,6 +14,7 @@ var (
 		tick         int
 		lockFile     string
 		kill         bool
+		cpuprofile   string
 	}
 )
 
@@ -26,6 +27,7 @@ func parseFlags() {
 	flag.StringVar(&options.logLevel, "level", "info", "log level")
 	flag.StringVar(&options.crashLogFile, "crashlog", "panic.dump", "crash log file")
 	flag.IntVar(&options.tick, "tick", 60*10, "watchdog ticker length in seconds")
+	flag.StringVar(&options.cpuprofile, "cpuprofile", "", "write cpu profile to file")
 
 	flag.Parse()
 

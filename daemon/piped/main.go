@@ -5,6 +5,7 @@ import (
 	"os"
 	"runtime"
 	"runtime/debug"
+	"runtime/pprof"
 	"syscall"
 	"time"
 
@@ -53,6 +54,15 @@ func init() {
 }
 
 func main() {
+	if options.cpuprofile != "" {
+		cpuprofile := "piped.prof"
+		f, err := os.Create(cpuprofile)
+		if err != nil {
+			println(err)
+		}
+		pprof.StartCPUProfile(f)
+	}
+
 	defer func() {
 		cleanup()
 
@@ -78,6 +88,7 @@ func shutdown() {
 
 func cleanup() {
 	if options.lockFile != "" {
+		pprof.StopCPUProfile()
 		locking.UnlockInstance(options.lockFile)
 		log.Debug("Cleanup lock %s", options.lockFile)
 	}

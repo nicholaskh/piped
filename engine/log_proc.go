@@ -90,6 +90,7 @@ func (this *LogProc) Process(input []byte) {
 			this.flusher.Enqueue(logg)
 		} else if strings.HasPrefix(logg, "NOTICE") {
 			//doing statistic of elapsed
+			/**
 			subMatch := this.appReg.FindAllStringSubmatch(logg, -1)
 			if len(subMatch) < 1 || len(subMatch[0]) < 3 {
 				log.Warn("elapsed log format error: %s", logg)
@@ -100,6 +101,25 @@ func (this *LogProc) Process(input []byte) {
 				return
 			}
 			elapsed, _ := strconv.ParseFloat(subMatch[0][2], 64)
+			*/
+			logPart := strings.Split(logg, " ")
+			var uri string
+			var elapsed float64
+			for _, part := range logPart {
+				if strings.HasPrefix(part, "uri[") {
+					uri = part[4 : len(part)-1]
+					if uri = this.filterUri(uri); uri == "" {
+						return
+					}
+				}
+				if strings.HasPrefix(part, "ts[") {
+					elapsed, _ = strconv.ParseFloat(part[3:len(part)-1], 64)
+				}
+			}
+			if uri == "" || elapsed == 0 {
+				log.Warn("elapsed log format error: %s", logg)
+				break
+			}
 			min := time.Now().Truncate(this.config.ElapsedCountInterval).Unix()
 			tagElapsed := fmt.Sprintf("%s|%s", TAG_ELAPSED, uri)
 			tagElapsedCount := fmt.Sprintf("%s_count|%s", TAG_ELAPSED, uri)
