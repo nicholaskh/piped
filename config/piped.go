@@ -20,6 +20,8 @@ type PipedConfig struct {
 	MetricsLogfile      string
 	StatsOutputInterval time.Duration
 
+	UdpPort int
+
 	Mongo   *MongoConfig
 	Flusher *FlusherConfig
 	Stats   *StatsConfig
@@ -34,6 +36,8 @@ func (this *PipedConfig) LoadConfig(cf *conf.Conf) {
 
 	this.MetricsLogfile = cf.String("metrics_logfile", "metrics.log")
 	this.StatsOutputInterval = cf.Duration("stats_output_interval", time.Minute*10)
+
+	this.UdpPort = cf.Int("udp_port", 14570)
 
 	this.Mongo = new(MongoConfig)
 	section, err := cf.Section("mongodb")

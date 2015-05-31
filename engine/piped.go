@@ -36,6 +36,8 @@ func NewPiped(config *config.PipedConfig) *Piped {
 }
 
 func (this *Piped) RunForever() {
+	go server.StartPingServer(this.config.UdpPort)
+
 	go this.server.LaunchTcpServer(this.config.ListenAddr, this.clientProcessor, this.config.SessionTimeout, 5)
 	go this.serverStats.Start(this.config.StatsOutputInterval, this.config.MetricsLogfile)
 

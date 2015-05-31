@@ -8,6 +8,8 @@
 	metrics_logfile: "metrics.log"
 	stats_output_interval: "2m"
 	
+	udp_port: 14570
+	
 	flusher: {
 		stats_flush_interval: "5s"
 	
