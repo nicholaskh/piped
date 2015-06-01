@@ -60,10 +60,10 @@ func (this *LogProc) loadStats(ts int64) {
 
 func (this *LogProc) Process(input []byte) {
 	line := string(input)
-	log.Debug(line)
 	linePart := strings.SplitN(line, LOG_SEP, 2)
 	if len(linePart) < 2 {
 		log.Error("Wrong format: %s", line)
+		return
 	}
 	tag := linePart[0]
 	logg := linePart[1]
@@ -86,9 +86,7 @@ func (this *LogProc) Process(input []byte) {
 		this.Stats[tag][hr] = value + 1
 	case TAG_APP:
 		//store to the db
-		if strings.HasPrefix(logg, "WARNING") || strings.HasPrefix(logg, "FATAL") {
-			this.flusher.Enqueue(logg)
-		} else if strings.HasPrefix(logg, "NOTICE") {
+		if strings.HasPrefix(logg, "NOTICE") {
 			//doing statistic of elapsed
 			/**
 			subMatch := this.appReg.FindAllStringSubmatch(logg, -1)
@@ -111,6 +109,13 @@ func (this *LogProc) Process(input []byte) {
 					if uri = this.filterUri(uri); uri == "" {
 						return
 					}
+					fq := strings.Index(uri, "?")
+					fsp := strings.Index(uri, "#")
+					if (fq < fsp || fsp < 1) && fq > 0 {
+						uri = uri[:fq]
+					} else if (fsp <= fq || fq < 1) && fsp > 0 {
+						uri = uri[:fsp]
+					}
 				}
 				if strings.HasPrefix(part, "ts[") {
 					elapsed, _ = strconv.ParseFloat(part[3:len(part)-1], 64)
@@ -120,34 +125,32 @@ func (this *LogProc) Process(input []byte) {
 				log.Warn("elapsed log format error: %s", logg)
 				break
 			}
-			min := time.Now().Truncate(this.config.ElapsedCountInterval).Unix()
+			minute := time.Now().Truncate(this.config.ElapsedCountInterval).Unix()
 			tagElapsed := fmt.Sprintf("%s|%s", TAG_ELAPSED, uri)
 			tagElapsedCount := fmt.Sprintf("%s_count|%s", TAG_ELAPSED, uri)
+			this.statsLock.Lock()
 			if _, exists := this.Stats[tagElapsed]; !exists {
 				this.Stats[tagElapsed] = make(map[int64]interface{})
 			}
-			oElapsed, exists := this.Stats[tagElapsed][min]
+			oElapsed, exists := this.Stats[tagElapsed][minute]
 			if !exists {
 				oElapsed = float64(0)
 			}
-			this.statsLock.Lock()
 			if _, exists := this.Stats[tagElapsedCount]; !exists {
 				this.Stats[tagElapsedCount] = make(map[int64]interface{})
 			}
-			elapsedCountCur, exists := this.Stats[tagElapsedCount][min]
+			elapsedCountCur, exists := this.Stats[tagElapsedCount][minute]
 			if !exists {
 				elapsedCountCur = 0
 			}
 			avgElapsed := (oElapsed.(float64)*float64(elapsedCountCur.(int)) + elapsed) / float64(elapsedCountCur.(int)+1)
-			this.Stats[tagElapsedCount][min] = elapsedCountCur.(int) + 1
-			this.Stats[tagElapsed][min] = avgElapsed
+			this.Stats[tagElapsedCount][minute] = elapsedCountCur.(int) + 1
+			this.Stats[tagElapsed][minute] = avgElapsed
 			this.statsLock.Unlock()
+		} else if strings.HasPrefix(logg, "WARNING") || strings.HasPrefix(logg, "FATAL") {
+			this.flusher.Enqueue(logg)
 		}
 	}
-
-	log.Debug(this.Stats)
-	log.Debug("tag: %s", tag)
-	log.Debug("log: %s", logg)
 }
 
 func (this *LogProc) filterUri(uri string) (uriFiltered string) {
