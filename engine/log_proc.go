@@ -154,7 +154,14 @@ func (this *LogProc) Process(input []byte) {
 }
 
 func (this *LogProc) filterUri(uri string) (uriFiltered string) {
-	if strings.HasSuffix(uri, ".html") || strings.HasSuffix(uri, ".png") || strings.HasSuffix(uri, ".gif") || strings.HasSuffix(uri, ".jpg") {
+	if strings.HasSuffix(uri, ".html") ||
+		strings.HasSuffix(uri, ".png") ||
+		strings.HasSuffix(uri, ".gif") ||
+		strings.HasSuffix(uri, ".jpg") ||
+		strings.HasSuffix(uri, ".js") ||
+		strings.HasSuffix(uri, ".xml") ||
+		strings.HasSuffix(uri, ".rar") ||
+		strings.HasSuffix(uri, ".zip") {
 		return ""
 	}
 	if this.config.ElapsedUriPathPrefix != nil {
