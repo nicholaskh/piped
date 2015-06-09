@@ -88,8 +88,10 @@ func shutdown() {
 
 func cleanup() {
 	if options.lockFile != "" {
-		pprof.StopCPUProfile()
 		locking.UnlockInstance(options.lockFile)
 		log.Debug("Cleanup lock %s", options.lockFile)
+	}
+	if options.cpuprofile != "" {
+		pprof.StopCPUProfile()
 	}
 }
