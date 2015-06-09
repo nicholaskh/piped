@@ -51,6 +51,8 @@ func init() {
 	conf := server.LoadConfig(options.configFile)
 	config.PipedConf = new(config.PipedConfig)
 	config.PipedConf.LoadConfig(conf)
+
+	engine.LoadLocalAddr(config.PipedConf.ListenAddr)
 }
 
 func main() {
@@ -71,6 +73,11 @@ func main() {
 			debug.PrintStack()
 		}
 	}()
+
+	err := engine.RegisterEtc(config.PipedConf.EtcServers)
+	if err != nil {
+		panic(err)
+	}
 
 	runtime.GOMAXPROCS(runtime.NumCPU())
 
@@ -94,4 +101,5 @@ func cleanup() {
 	if options.cpuprofile != "" {
 		pprof.StopCPUProfile()
 	}
+	engine.UnregisterEtc()
 }

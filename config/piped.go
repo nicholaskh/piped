@@ -11,6 +11,8 @@ var (
 )
 
 type PipedConfig struct {
+	EtcServers []string
+
 	ListenAddr     string
 	SessionTimeout time.Duration
 
@@ -28,6 +30,11 @@ type PipedConfig struct {
 }
 
 func (this *PipedConfig) LoadConfig(cf *conf.Conf) {
+	this.EtcServers = cf.StringList("etc_servers", nil)
+	if this.EtcServers == nil {
+		panic("No etc servers found")
+	}
+
 	this.ListenAddr = cf.String("listen_addr", ":5687")
 	this.SessionTimeout = cf.Duration("session_timeout", time.Minute*2)
 
