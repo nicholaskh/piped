@@ -1,4 +1,9 @@
 {
+	// server addresses of zk
+	etc_servers: [
+		"127.0.0.1:2181",
+	]
+	
 	listen_addr: ":5687"
 	session_timeout: "2m"
 	
