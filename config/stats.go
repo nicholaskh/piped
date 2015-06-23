@@ -11,6 +11,9 @@ type StatsConfig struct {
 	ElapsedCountInterval time.Duration
 
 	ElapsedUriPathPrefix []string
+
+	MacThreshold   int
+	PhoneThreshold int
 }
 
 func (this *StatsConfig) LoadConfig(cf *conf.Conf) {
@@ -18,4 +21,7 @@ func (this *StatsConfig) LoadConfig(cf *conf.Conf) {
 	this.ElapsedCountInterval = cf.Duration("elapsed_count_interval", time.Minute*5)
 
 	this.ElapsedUriPathPrefix = cf.StringList("elapsed_uri_path_prefix", nil)
+
+	this.MacThreshold = cf.Int("mac_threshold", 10)
+	this.PhoneThreshold = cf.Int("phone_threshold", 10)
 }

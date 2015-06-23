@@ -39,6 +39,20 @@
 		elapsed_uri_path_prefix: [
 			"/goods/"
 		]
+		
+		mac_threshold: 10
+		phone_threshold: 10
 	}
-
+	
+	alarm: {
+		email: {
+			server: "smtp.163.com:25"
+			user: "zhangkh.3@163.com"
+			pwd: "19871013aA"
+			notifiers: ["zhangkaihong3@wanda.cn"]
+		},
+		sms: {
+			
+		},
+	}
 }

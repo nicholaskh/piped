@@ -22,18 +22,20 @@ type LogProc struct {
 	config      *config.StatsConfig
 	Stats       LogStats
 	flusher     *Flusher
+	alarmer     *Alarmer
 	mongoConfig *config.MongoConfig
 	appReg      *regexp.Regexp
 	statsLock   sync.Mutex
 }
 
-func NewLogProc(config *config.StatsConfig, flusher *Flusher, mongoConfig *config.MongoConfig) *LogProc {
+func NewLogProc(config *config.StatsConfig, flusher *Flusher, alarmer *Alarmer, mongoConfig *config.MongoConfig) *LogProc {
 	this := new(LogProc)
 	this.config = config
 	this.mongoConfig = mongoConfig
 	this.Stats = make(LogStats)
 	this.loadStats(time.Now().Truncate(this.config.ElapsedCountInterval).Unix())
 	this.flusher = flusher
+	this.alarmer = alarmer
 	//NOTICE: 15-05-15 14:51:53 errno[0] client[10.1.171.230] uri[/] user[] refer[http://10.1.169.16:12620/] cookie[U_UID=ced4bf452fea42b0853597fb6430e819; PHPSESSID=781f9621e47a41bbb15c4852f97c84af; SESSIONID=781f9621e47a41bbb15c4852f97c84af; CITY_ID=110100; PLAZA_ID=1000772] post[] ts[0.12319707870483]  f_redis[1]
 	this.appReg = regexp.MustCompile(`uri\[([^\?#\]]+)[^\]]*\].*ts\[([\d\.]+)\]`)
 	return this
@@ -58,8 +60,11 @@ func (this *LogProc) loadStats(ts int64) {
 	}
 }
 
-func (this *LogProc) Process(input []byte) {
-	line := string(input)
+func (this *LogProc) Process(app, data []byte) {
+	var uri string
+	appStr := string(app)
+	line := string(data)
+	log.Info("app: %s\n line: %s", appStr, line)
 	linePart := strings.SplitN(line, LOG_SEP, 2)
 	if len(linePart) < 2 {
 		log.Error("Wrong format: %s", line)
@@ -67,6 +72,87 @@ func (this *LogProc) Process(input []byte) {
 	}
 	tag := linePart[0]
 	logg := linePart[1]
+
+	//"wifi" app should count the request times and alarm
+	if appStr == "wifi" {
+		logPart := strings.Split(logg, " ")
+		var mac string
+		var phone string
+		var testMac, testPhone bool
+		count := 0
+		for _, part := range logPart {
+			if uri == "" && strings.HasPrefix(part, "uri[") {
+				uri = part[4 : len(part)-1]
+				if uri = this.filterUri(uri); uri == "" {
+					break
+				}
+				count++
+				if count >= 3 {
+					break
+				}
+			}
+			if strings.HasPrefix(part, "mac[") {
+				testMac = true
+				mac = part[4 : len(part)-1]
+				count++
+				if count >= 3 {
+					break
+				}
+			}
+			if strings.HasPrefix(part, "phone[") {
+				testPhone = true
+				phone = part[6 : len(part)-1]
+				count++
+				if count >= 3 {
+					break
+				}
+			}
+			if testMac && mac == "" && testPhone && phone == "" {
+				break
+			}
+		}
+		if uri == "" || mac == "" && phone == "" {
+			log.Info(uri)
+			log.Info(mac)
+			log.Info(phone)
+			log.Warn("wifi log format error: %s", logg)
+			return
+		}
+		minuteTime := time.Now().Truncate(this.config.ElapsedCountInterval)
+		minute := minuteTime.Unix()
+		if mac != "" {
+			tag := fmt.Sprintf("%s|%s", uri, mac)
+			if _, exists := this.Stats[tag]; !exists {
+				this.Stats[tag] = make(map[int64]interface{})
+			}
+			ct, exists := this.Stats[tag][minute]
+			if !exists {
+				ct = 0
+			}
+			currentCount := ct.(int) + 1
+			this.Stats[tag][minute] = currentCount
+			if currentCount >= this.config.MacThreshold {
+				this.alarmer.EnqueueEmail(NewEmail("【ALARM】Request times exceed",
+					this.constructEmailBody("mac", mac, minuteTime.Format("2006-01-02 15:04:05"), currentCount)))
+			}
+		}
+		if phone != "" {
+			tag := fmt.Sprintf("%s|%s", uri, phone)
+			if _, exists := this.Stats[tag]; !exists {
+				this.Stats[tag] = make(map[int64]interface{})
+			}
+			ct, exists := this.Stats[tag][minute]
+			if !exists {
+				ct = 0
+			}
+			currentCount := ct.(int) + 1
+			this.Stats[tag][minute] = currentCount
+			if currentCount >= this.config.PhoneThreshold {
+				this.alarmer.EnqueueEmail(NewEmail("【ALARM】Request times exceed",
+					this.constructEmailBody("phone", phone, minuteTime.Format("2006-01-02 15:04:05"), currentCount)))
+			}
+		}
+	}
 
 	switch tag {
 	case TAG_APACHE_404, TAG_APACHE_500, TAG_NGINX_404, TAG_NGINX_500:
@@ -101,24 +187,25 @@ func (this *LogProc) Process(input []byte) {
 			elapsed, _ := strconv.ParseFloat(subMatch[0][2], 64)
 			*/
 			logPart := strings.Split(logg, " ")
-			var uri string
 			var elapsed float64
+			count := 0
 			for _, part := range logPart {
-				if strings.HasPrefix(part, "uri[") {
+				if uri == "" && strings.HasPrefix(part, "uri[") {
 					uri = part[4 : len(part)-1]
 					if uri = this.filterUri(uri); uri == "" {
-						return
+						break
 					}
-					fq := strings.Index(uri, "?")
-					fsp := strings.Index(uri, "#")
-					if (fq < fsp || fsp < 1) && fq > 0 {
-						uri = uri[:fq]
-					} else if (fsp <= fq || fq < 1) && fsp > 0 {
-						uri = uri[:fsp]
+					count++
+					if count >= 2 {
+						break
 					}
 				}
 				if strings.HasPrefix(part, "ts[") {
 					elapsed, _ = strconv.ParseFloat(part[3:len(part)-1], 64)
+					count++
+					if count >= 2 {
+						break
+					}
 				}
 			}
 			if uri == "" || elapsed == 0 {
@@ -147,6 +234,7 @@ func (this *LogProc) Process(input []byte) {
 			this.Stats[tagElapsedCount][minute] = elapsedCountCur.(int) + 1
 			this.Stats[tagElapsed][minute] = avgElapsed
 			this.statsLock.Unlock()
+			this.flusher.Enqueue(logg)
 		} else if strings.HasPrefix(logg, "WARNING") || strings.HasPrefix(logg, "FATAL") {
 			this.flusher.Enqueue(logg)
 		}
@@ -172,5 +260,29 @@ func (this *LogProc) filterUri(uri string) (uriFiltered string) {
 			}
 		}
 	}
+	fq := strings.Index(uri, "?")
+	fsp := strings.Index(uri, "#")
+	if fq < fsp && fq > 0 {
+		uri = uri[:fq]
+	} else if fsp < fq && fsp > 0 {
+		uri = uri[:fsp]
+	}
 	return uri
+}
+
+func (this *LogProc) constructEmailBody(tp, addr, time string, times int) string {
+	return fmt.Sprintf(`
+		<html>
+		<body>
+		<h3>
+		Request Times exceed
+		</h3>
+		<p>mac: %s</p>
+		<p>time: %s</p>
+		<p>request times: %d</p>
+		<br />
+		If you do not care about this message, please ignore.
+		</body>
+		</html>
+		`, tp, addr, time, times)
 }

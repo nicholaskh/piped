@@ -16,22 +16,25 @@ type PipedClientProcessor struct {
 	logProc     *LogProc
 }
 
-func NewPipedClientProcessor(server *server.TcpServer, serverStats *ServerStats, flusher *Flusher) *PipedClientProcessor {
+func NewPipedClientProcessor(server *server.TcpServer, serverStats *ServerStats, flusher *Flusher, alarmer *Alarmer) *PipedClientProcessor {
 	this := new(PipedClientProcessor)
 	this.server = server
 	this.serverStats = serverStats
-	this.logProc = NewLogProc(config.PipedConf.Stats, flusher, config.PipedConf.Mongo)
+	this.logProc = NewLogProc(config.PipedConf.Stats, flusher, alarmer, config.PipedConf.Mongo)
 
 	return this
 }
 
-func (this *PipedClientProcessor) OnAccept(client *server.Client) {
+func (this *PipedClientProcessor) OnAccept(c *server.Client) {
+	proto := NewProtocol("")
+	proto.SetConn(c.Conn)
+	client := newClient(c, proto)
 	for {
 		if this.server.SessTimeout.Nanoseconds() > int64(0) {
 			client.Proto.SetReadDeadline(time.Now().Add(this.server.SessTimeout))
 		}
 
-		input, err := client.Proto.Read()
+		app, data, err := client.proto.Read()
 
 		if err != nil {
 			err_, ok := err.(net.Error)
@@ -50,12 +53,12 @@ func (this *PipedClientProcessor) OnAccept(client *server.Client) {
 			}
 		}
 
-		go this.OnRead(input)
+		go this.OnRead(app, data)
 	}
 	client.Close()
 }
 
-func (this *PipedClientProcessor) OnRead(input []byte) {
+func (this *PipedClientProcessor) OnRead(app, data []byte) {
 	var (
 		t1      time.Time
 		elapsed time.Duration
@@ -63,7 +66,7 @@ func (this *PipedClientProcessor) OnRead(input []byte) {
 
 	t1 = time.Now()
 
-	this.logProc.Process(input)
+	this.logProc.Process(app, data)
 
 	elapsed = time.Since(t1)
 	this.serverStats.CallLatencies.Update(elapsed.Nanoseconds() / 1e3)
@@ -78,4 +81,17 @@ type TinyFluentRecord struct {
 type FluentRecordSet struct {
 	Tag     string
 	Records []TinyFluentRecord
+}
+
+type Client struct {
+	*server.Client
+	proto *Protocol
+}
+
+func newClient(c *server.Client, proto *Protocol) *Client {
+	this := new(Client)
+	this.Client = c
+	this.proto = proto
+
+	return this
 }

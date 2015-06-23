@@ -13,6 +13,7 @@ type Piped struct {
 	serverStats     *ServerStats
 	clientProcessor *PipedClientProcessor
 	flusher         *Flusher
+	alarmer         *Alarmer
 }
 
 func NewPiped(config *config.PipedConfig) *Piped {
@@ -28,9 +29,11 @@ func NewPiped(config *config.PipedConfig) *Piped {
 		maxInterval = this.config.Stats.ElapsedCountInterval
 	}
 	this.flusher = NewFlusher(this.config.Mongo, this.config.Flusher, maxInterval)
-	this.clientProcessor = NewPipedClientProcessor(this.server, this.serverStats, this.flusher)
+	this.clientProcessor = NewPipedClientProcessor(this.server, this.serverStats, this.flusher, this.alarmer)
 
 	this.flusher.RegisterStats(this.clientProcessor.logProc.Stats)
+
+	this.alarmer = NewAlarmer(config.Alarm)
 
 	return this
 }
@@ -42,6 +45,7 @@ func (this *Piped) RunForever() {
 	go this.serverStats.Start(this.config.StatsOutputInterval, this.config.MetricsLogfile)
 
 	this.flusher.Serv()
+	this.alarmer.Serv()
 
 	done := make(chan int)
 	<-done
