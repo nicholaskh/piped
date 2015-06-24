@@ -1,6 +1,8 @@
 package config
 
 import (
+	"time"
+
 	conf "github.com/nicholaskh/jsconf"
 )
 
@@ -30,6 +32,8 @@ type EmailConfig struct {
 	User      string
 	Pwd       string
 	Notifiers []string
+
+	SendInterval time.Duration
 }
 
 func (this *EmailConfig) LoadConfig(cf *conf.Conf) {
@@ -37,6 +41,8 @@ func (this *EmailConfig) LoadConfig(cf *conf.Conf) {
 	this.User = cf.String("user", "")
 	this.Pwd = cf.String("pwd", "")
 	this.Notifiers = cf.StringList("notifiers", nil)
+
+	this.SendInterval = cf.Duration("send_interval", time.Minute*1)
 
 	if this.Server == "" ||
 		this.User == "" ||
@@ -47,8 +53,21 @@ func (this *EmailConfig) LoadConfig(cf *conf.Conf) {
 }
 
 type SmsConfig struct {
+	Gateway    string
+	TemplateId int
+	Notifiers  []string
+
+	SendInterval time.Duration
 }
 
 func (this *SmsConfig) LoadConfig(cf *conf.Conf) {
+	this.Gateway = cf.String("gateway", "")
+	this.TemplateId = cf.Int("template_id", 0)
+	this.Notifiers = cf.StringList("notifiers", nil)
 
+	this.SendInterval = cf.Duration("send_interval", time.Minute*1)
+
+	if this.Gateway == "" || this.TemplateId == 0 || this.Notifiers == nil {
+		panic("Imcomplete sms alarm config")
+	}
 }

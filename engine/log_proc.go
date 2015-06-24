@@ -26,6 +26,9 @@ type LogProc struct {
 	mongoConfig *config.MongoConfig
 	appReg      *regexp.Regexp
 	statsLock   sync.Mutex
+
+	emailSentTimes map[string]time.Time
+	smsSentTimes   map[string]time.Time
 }
 
 func NewLogProc(config *config.StatsConfig, flusher *Flusher, alarmer *Alarmer, mongoConfig *config.MongoConfig) *LogProc {
@@ -38,6 +41,9 @@ func NewLogProc(config *config.StatsConfig, flusher *Flusher, alarmer *Alarmer, 
 	this.alarmer = alarmer
 	//NOTICE: 15-05-15 14:51:53 errno[0] client[10.1.171.230] uri[/] user[] refer[http://10.1.169.16:12620/] cookie[U_UID=ced4bf452fea42b0853597fb6430e819; PHPSESSID=781f9621e47a41bbb15c4852f97c84af; SESSIONID=781f9621e47a41bbb15c4852f97c84af; CITY_ID=110100; PLAZA_ID=1000772] post[] ts[0.12319707870483]  f_redis[1]
 	this.appReg = regexp.MustCompile(`uri\[([^\?#\]]+)[^\]]*\].*ts\[([\d\.]+)\]`)
+
+	this.emailSentTimes = make(map[string]time.Time)
+	this.smsSentTimes = make(map[string]time.Time)
 	return this
 }
 
@@ -64,7 +70,6 @@ func (this *LogProc) Process(app, data []byte) {
 	var uri string
 	appStr := string(app)
 	line := string(data)
-	log.Info("app: %s\n line: %s", appStr, line)
 	linePart := strings.SplitN(line, LOG_SEP, 2)
 	if len(linePart) < 2 {
 		log.Error("Wrong format: %s", line)
@@ -112,9 +117,6 @@ func (this *LogProc) Process(app, data []byte) {
 			}
 		}
 		if uri == "" || mac == "" && phone == "" {
-			log.Info(uri)
-			log.Info(mac)
-			log.Info(phone)
 			log.Warn("wifi log format error: %s", logg)
 			return
 		}
@@ -131,9 +133,10 @@ func (this *LogProc) Process(app, data []byte) {
 			}
 			currentCount := ct.(int) + 1
 			this.Stats[tag][minute] = currentCount
+			time.Sleep(time.Second * 2)
 			if currentCount >= this.config.MacThreshold {
-				this.alarmer.EnqueueEmail(NewEmail("【ALARM】Request times exceed",
-					this.constructEmailBody("mac", mac, minuteTime.Format("2006-01-02 15:04:05"), currentCount)))
+				this.enqueueEmailAlarm("mac", mac, minuteTime.Format("2006-01-02 15:04:05"), currentCount)
+				this.enqueueSmsAlarm("mac", mac, minuteTime.Format("2006-01-02 15:04:05"), currentCount)
 			}
 		}
 		if phone != "" {
@@ -148,8 +151,8 @@ func (this *LogProc) Process(app, data []byte) {
 			currentCount := ct.(int) + 1
 			this.Stats[tag][minute] = currentCount
 			if currentCount >= this.config.PhoneThreshold {
-				this.alarmer.EnqueueEmail(NewEmail("【ALARM】Request times exceed",
-					this.constructEmailBody("phone", phone, minuteTime.Format("2006-01-02 15:04:05"), currentCount)))
+				this.enqueueEmailAlarm("phone", phone, minuteTime.Format("2006-01-02 15:04:05"), currentCount)
+				this.enqueueSmsAlarm("phone", phone, minuteTime.Format("2006-01-02 15:04:05"), currentCount)
 			}
 		}
 	}
@@ -277,7 +280,7 @@ func (this *LogProc) constructEmailBody(tp, addr, time string, times int) string
 		<h3>
 		Request Times exceed
 		</h3>
-		<p>mac: %s</p>
+		<p>%s: %s</p>
 		<p>time: %s</p>
 		<p>request times: %d</p>
 		<br />
@@ -285,4 +288,20 @@ func (this *LogProc) constructEmailBody(tp, addr, time string, times int) string
 		</body>
 		</html>
 		`, tp, addr, time, times)
+}
+
+func (this *LogProc) enqueueSmsAlarm(limitType, id, timeStr string, count int) {
+	if t, exists := this.smsSentTimes[id]; !exists || t.Add(this.alarmer.config.Sms.SendInterval).Before(time.Now()) {
+		this.alarmer.EnqueueSms(NewSms(fmt.Sprintf("Request times exceed, %s: %s, time: %s, request times: %d",
+			limitType, id, timeStr, count)))
+		this.smsSentTimes[id] = time.Now()
+	}
+}
+
+func (this *LogProc) enqueueEmailAlarm(limitType, id, timeStr string, count int) {
+	if t, exists := this.emailSentTimes[id]; !exists || t.Add(this.alarmer.config.Email.SendInterval).Before(time.Now()) {
+		this.alarmer.EnqueueEmail(NewEmail("【ALARM】Request times exceed",
+			this.constructEmailBody(limitType, id, timeStr, count)))
+		this.emailSentTimes[id] = time.Now()
+	}
 }

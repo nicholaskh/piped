@@ -41,7 +41,7 @@ func (this *PipedClientProcessor) OnAccept(c *server.Client) {
 			if ok {
 				if err_.Temporary() {
 					log.Info("Temporary failure: %s", err_.Error())
-					continue
+					break
 				}
 			}
 			if err == io.EOF {

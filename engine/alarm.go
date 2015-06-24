@@ -1,9 +1,16 @@
 package engine
 
 import (
+	"fmt"
+	"io/ioutil"
+	"net/http"
 	"net/smtp"
+	"net/url"
+	"strconv"
 	"strings"
+	"time"
 
+	log "github.com/nicholaskh/log4go"
 	"github.com/nicholaskh/piped/config"
 )
 
@@ -46,6 +53,23 @@ func (this *Alarmer) sendEmailAlarm(email *Email) error {
 }
 
 func (this *Alarmer) sendSmsAlarm(sms *Sms) error {
+	for _, notifier := range this.config.Sms.Notifiers {
+		resp, err := http.PostForm(this.config.Sms.Gateway,
+			url.Values{"templateId": {strconv.Itoa(this.config.Sms.TemplateId)}, "deviceList": {fmt.Sprintf("[%s]", notifier)},
+				"deviceType": {strconv.Itoa(0)}, "argsList": {fmt.Sprintf("[[\"%s\"]]", sms.body)},
+				"contentType": {strconv.Itoa(0)}, "validTime": {strconv.FormatInt(time.Now().Add(time.Hour*8760).Unix(), 10)}})
+
+		if err != nil {
+			log.Error("Sent sms error: %s", err.Error())
+		}
+
+		defer resp.Body.Close()
+		body, err := ioutil.ReadAll(resp.Body)
+		if err != nil {
+			log.Error(err.Error())
+		}
+		log.Info(string(body))
+	}
 	return nil
 }
 
@@ -73,8 +97,9 @@ func NewEmail(subject, body string) *Email {
 }
 
 type Sms struct {
+	body string
 }
 
-func NewSms() *Sms {
-	return &Sms{}
+func NewSms(body string) *Sms {
+	return &Sms{body}
 }

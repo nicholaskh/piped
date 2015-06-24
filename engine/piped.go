@@ -29,11 +29,10 @@ func NewPiped(config *config.PipedConfig) *Piped {
 		maxInterval = this.config.Stats.ElapsedCountInterval
 	}
 	this.flusher = NewFlusher(this.config.Mongo, this.config.Flusher, maxInterval)
+	this.alarmer = NewAlarmer(config.Alarm)
 	this.clientProcessor = NewPipedClientProcessor(this.server, this.serverStats, this.flusher, this.alarmer)
 
 	this.flusher.RegisterStats(this.clientProcessor.logProc.Stats)
-
-	this.alarmer = NewAlarmer(config.Alarm)
 
 	return this
 }
