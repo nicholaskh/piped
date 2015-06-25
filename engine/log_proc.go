@@ -135,8 +135,8 @@ func (this *LogProc) Process(app, data []byte) {
 			this.Stats[tag][minute] = currentCount
 			time.Sleep(time.Second * 2)
 			if currentCount >= this.config.MacThreshold {
-				//				this.enqueueEmailAlarm("mac", mac, minuteTime.Format("2006-01-02 15:04:05"), currentCount)
-				//				this.enqueueSmsAlarm("mac", mac, minuteTime.Format("2006-01-02 15:04:05"), currentCount)
+				this.enqueueEmailAlarm("mac", mac, minuteTime.Format("2006-01-02 15:04:05"), currentCount)
+				this.enqueueSmsAlarm("mac", mac, minuteTime.Format("2006-01-02 15:04:05"), currentCount)
 			}
 		}
 		if phone != "" {
@@ -151,8 +151,8 @@ func (this *LogProc) Process(app, data []byte) {
 			currentCount := ct.(int) + 1
 			this.Stats[tag][minute] = currentCount
 			if currentCount >= this.config.PhoneThreshold {
-				//				this.enqueueEmailAlarm("phone", phone, minuteTime.Format("2006-01-02 15:04:05"), currentCount)
-				//				this.enqueueSmsAlarm("phone", phone, minuteTime.Format("2006-01-02 15:04:05"), currentCount)
+				this.enqueueEmailAlarm("phone", phone, minuteTime.Format("2006-01-02 15:04:05"), currentCount)
+				this.enqueueSmsAlarm("phone", phone, minuteTime.Format("2006-01-02 15:04:05"), currentCount)
 			}
 		}
 	}
