@@ -265,9 +265,9 @@ func (this *LogProc) filterUri(uri string) (uriFiltered string) {
 	}
 	fq := strings.Index(uri, "?")
 	fsp := strings.Index(uri, "#")
-	if fq < fsp && fq > 0 {
+	if (fq < fsp || fsp < 0) && fq > 0 {
 		uri = uri[:fq]
-	} else if fsp < fq && fsp > 0 {
+	} else if (fsp < fq || fq < 0) && fsp > 0 {
 		uri = uri[:fsp]
 	}
 	return uri
