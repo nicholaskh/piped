@@ -17,7 +17,7 @@ type Flusher struct {
 	config      *config.FlusherConfig
 	purgeTime   time.Duration
 
-	queue chan string
+	queue chan *Log
 }
 
 func NewFlusher(mongoConfig *config.MongoConfig, flusherConfig *config.FlusherConfig, purgeTime time.Duration) *Flusher {
@@ -25,7 +25,7 @@ func NewFlusher(mongoConfig *config.MongoConfig, flusherConfig *config.FlusherCo
 	this.mongoConfig = mongoConfig
 	this.config = flusherConfig
 	this.purgeTime = purgeTime
-	this.queue = make(chan string, 100000)
+	this.queue = make(chan *Log, 100000)
 
 	return this
 }
@@ -34,7 +34,7 @@ func (this *Flusher) RegisterStats(stats LogStats) {
 	this.stats = stats
 }
 
-func (this *Flusher) Enqueue(logg string) {
+func (this *Flusher) Enqueue(logg *Log) {
 	this.queue <- logg
 }
 
@@ -88,9 +88,9 @@ func (this *Flusher) flushStats() {
 	}
 }
 
-func (this *Flusher) flushLog(logg string) {
+func (this *Flusher) flushLog(logg *Log) {
 	ts := time.Now().Unix()
-	err := db.MgoSession(this.mongoConfig.Addr).DB("ffan_monitor").C("log").Insert(bson.M{"ts": ts, "log": logg})
+	err := db.MgoSession(this.mongoConfig.Addr).DB("ffan_monitor").C("log").Insert(bson.M{"ts": ts, "app": logg.app, "log": logg.data})
 	if err != nil {
 		log.Error("flush stats error: %s", err.Error())
 	}

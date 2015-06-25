@@ -237,9 +237,9 @@ func (this *LogProc) Process(app, data []byte) {
 			this.Stats[tagElapsedCount][minute] = elapsedCountCur.(int) + 1
 			this.Stats[tagElapsed][minute] = avgElapsed
 			this.statsLock.Unlock()
-			this.flusher.Enqueue(logg)
+			this.flusher.Enqueue(&Log{appStr, logg})
 		} else if strings.HasPrefix(logg, "WARNING") || strings.HasPrefix(logg, "FATAL") {
-			this.flusher.Enqueue(logg)
+			this.flusher.Enqueue(&Log{appStr, logg})
 		}
 	}
 }
@@ -304,4 +304,9 @@ func (this *LogProc) enqueueEmailAlarm(limitType, id, timeStr string, count int)
 			this.constructEmailBody(limitType, id, timeStr, count)))
 		this.emailSentTimes[id] = time.Now()
 	}
+}
+
+type Log struct {
+	app  string
+	data string
 }
