@@ -104,7 +104,7 @@ func (this *Flusher) flushLogBatch() {
 		ts := time.Now().Unix()
 		for i := 0; i < logCount; i++ {
 			logg := <-this.queue
-			records = append(records, bson.M{"ts": ts, "log": logg})
+			records = append(records, bson.M{"ts": ts, "app": logg.app, "log": logg.data})
 		}
 		err := db.MgoSession(this.mongoConfig.Addr).DB("ffan_monitor").C("log").Insert(records...)
 		if err != nil {
