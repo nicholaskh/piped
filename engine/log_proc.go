@@ -2,6 +2,7 @@ package engine
 
 import (
 	"fmt"
+	"net/url"
 	"regexp"
 	"strconv"
 	"strings"
@@ -81,38 +82,27 @@ func (this *LogProc) Process(app, data []byte) {
 	//"wifi" app should count the request times and alarm
 	if appStr == "wifi" {
 		logPart := strings.Split(logg, " ")
-		var mac string
-		var phone string
-		var testMac, testPhone bool
-		count := 0
+		var mac, phone string
 		for _, part := range logPart {
 			if uri == "" && strings.HasPrefix(part, "uri[") {
 				uri = part[4 : len(part)-1]
+				v, err := url.ParseRequestURI(uri)
+				if err != nil {
+					log.Error("Parse uri error: %s", err.Error())
+					return
+				}
+				q, _ := url.ParseQuery(v.RawQuery)
+				var exists bool
+				var queryArr []string
+				if queryArr, exists = q["CMAC"]; exists && len(queryArr) > 0 {
+					mac = queryArr[0]
+				}
+				if queryArr, exists = q["mobile"]; exists && len(queryArr) > 0 {
+					phone = queryArr[0]
+				}
 				if uri = this.filterUri(uri); uri == "" {
 					break
 				}
-				count++
-				if count >= 3 {
-					break
-				}
-			}
-			if strings.HasPrefix(part, "mac[") {
-				testMac = true
-				mac = part[4 : len(part)-1]
-				count++
-				if count >= 3 {
-					break
-				}
-			}
-			if strings.HasPrefix(part, "phone[") {
-				testPhone = true
-				phone = part[6 : len(part)-1]
-				count++
-				if count >= 3 {
-					break
-				}
-			}
-			if testMac && mac == "" && testPhone && phone == "" {
 				break
 			}
 		}
