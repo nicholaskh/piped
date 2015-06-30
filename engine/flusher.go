@@ -16,6 +16,7 @@ type Flusher struct {
 	stats       LogStats
 	config      *config.FlusherConfig
 	purgeTime   time.Duration
+	mongoPool   *db.MgoSessionPool
 
 	queue chan *Log
 }
@@ -26,6 +27,7 @@ func NewFlusher(mongoConfig *config.MongoConfig, flusherConfig *config.FlusherCo
 	this.config = flusherConfig
 	this.purgeTime = purgeTime
 	this.queue = make(chan *Log, 100000)
+	this.mongoPool = db.NewMgoSessionPool(this.mongoConfig.Addr, this.mongoConfig.Connections)
 
 	return this
 }
@@ -79,7 +81,9 @@ func (this *Flusher) flushStats() {
 			if ts < purgeTs {
 				delete(stats, ts)
 			} else {
-				_, err := db.MgoSession(this.mongoConfig.Addr).DB("ffan_monitor").C("sys_stats").Upsert(bson.M{"tag": tag, "ts": ts}, bson.M{"tag": tag, "ts": ts, "value": value})
+				mgoSession := this.mongoPool.Get()
+				_, err := mgoSession.DB("ffan_monitor").C("sys_stats").Upsert(bson.M{"tag": tag, "ts": ts}, bson.M{"tag": tag, "ts": ts, "value": value})
+				this.mongoPool.Put(mgoSession)
 				if err != nil {
 					log.Error("flush stats error: %s", err.Error())
 				}
@@ -90,7 +94,9 @@ func (this *Flusher) flushStats() {
 
 func (this *Flusher) flushLog(logg *Log) {
 	ts := time.Now().Unix()
-	err := db.MgoSession(this.mongoConfig.Addr).DB("ffan_monitor").C("log").Insert(bson.M{"ts": ts, "app": logg.app, "log": logg.data})
+	mgoSession := this.mongoPool.Get()
+	err := mgoSession.DB("ffan_monitor").C("log").Insert(bson.M{"ts": ts, "app": logg.app, "log": logg.data})
+	this.mongoPool.Put(mgoSession)
 	if err != nil {
 		log.Error("flush stats error: %s", err.Error())
 	}
@@ -106,7 +112,9 @@ func (this *Flusher) flushLogBatch() {
 			logg := <-this.queue
 			records = append(records, bson.M{"ts": ts, "app": logg.app, "log": logg.data})
 		}
-		err := db.MgoSession(this.mongoConfig.Addr).DB("ffan_monitor").C("log").Insert(records...)
+		mgoSession := this.mongoPool.Get()
+		err := mgoSession.DB("ffan_monitor").C("log").Insert(records...)
+		this.mongoPool.Put(mgoSession)
 		if err != nil {
 			log.Error("flush log error: %s", err.Error())
 		}

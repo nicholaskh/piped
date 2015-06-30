@@ -62,7 +62,6 @@ func (this *Alarmer) sendSmsAlarm(sms *Sms) error {
 		if err != nil {
 			log.Error("Sent sms error: %s", err.Error())
 		}
-
 		if resp != nil {
 			defer resp.Body.Close()
 		}
