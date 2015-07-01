@@ -22,6 +22,7 @@ type LogStats map[string]map[int64]interface{}
 type LogProc struct {
 	config      *config.StatsConfig
 	Stats       LogStats
+	StatsMem    LogStats
 	flusher     *Flusher
 	alarmer     *Alarmer
 	mongoConfig *config.MongoConfig
@@ -37,6 +38,7 @@ func NewLogProc(config *config.StatsConfig, flusher *Flusher, alarmer *Alarmer, 
 	this.config = config
 	this.mongoConfig = mongoConfig
 	this.Stats = make(LogStats)
+	this.StatsMem = make(LogStats)
 	this.loadStats(time.Now().Truncate(this.config.ElapsedCountInterval).Unix())
 	this.flusher = flusher
 	this.alarmer = alarmer
@@ -110,37 +112,39 @@ func (this *LogProc) Process(app, data []byte) {
 			log.Warn("wifi log format error: %s", logg)
 			return
 		}
-		minuteTime := time.Now().Truncate(this.config.ElapsedCountInterval)
+		minuteTime := time.Now().Truncate(this.config.AlarmCountInterval)
 		minute := minuteTime.Unix()
 		if mac != "" {
 			tag := fmt.Sprintf("%s|%s", uri, mac)
-			if _, exists := this.Stats[tag]; !exists {
-				this.Stats[tag] = make(map[int64]interface{})
+			if _, exists := this.StatsMem[tag]; !exists {
+				this.StatsMem[tag] = make(map[int64]interface{})
 			}
-			ct, exists := this.Stats[tag][minute]
+			ct, exists := this.StatsMem[tag][minute]
 			if !exists {
 				ct = 0
 			}
 			currentCount := ct.(int) + 1
-			this.Stats[tag][minute] = currentCount
+			this.StatsMem[tag][minute] = currentCount
 			time.Sleep(time.Second * 2)
 			if currentCount >= this.config.MacThreshold {
+				this.Stats[tag][minute] = currentCount
 				this.enqueueEmailAlarm("mac", mac, minuteTime.Format("2006-01-02 15:04:05"), currentCount)
 				this.enqueueSmsAlarm("mac", mac, minuteTime.Format("2006-01-02 15:04:05"), currentCount)
 			}
 		}
 		if phone != "" {
 			tag := fmt.Sprintf("%s|%s", uri, phone)
-			if _, exists := this.Stats[tag]; !exists {
-				this.Stats[tag] = make(map[int64]interface{})
+			if _, exists := this.StatsMem[tag]; !exists {
+				this.StatsMem[tag] = make(map[int64]interface{})
 			}
-			ct, exists := this.Stats[tag][minute]
+			ct, exists := this.StatsMem[tag][minute]
 			if !exists {
 				ct = 0
 			}
 			currentCount := ct.(int) + 1
-			this.Stats[tag][minute] = currentCount
+			this.StatsMem[tag][minute] = currentCount
 			if currentCount >= this.config.PhoneThreshold {
+				this.Stats[tag][minute] = currentCount
 				this.enqueueEmailAlarm("phone", phone, minuteTime.Format("2006-01-02 15:04:05"), currentCount)
 				this.enqueueSmsAlarm("phone", phone, minuteTime.Format("2006-01-02 15:04:05"), currentCount)
 			}

@@ -60,7 +60,7 @@ func (this *Alarmer) sendSmsAlarm(sms *Sms) error {
 				"contentType": {strconv.Itoa(0)}, "validTime": {strconv.FormatInt(time.Now().Add(time.Hour*8760).Unix(), 10)}})
 
 		if err != nil {
-			log.Error("Sent sms error: %s", err.Error())
+			log.Error("Send sms error: %s", err.Error())
 		}
 		if resp != nil {
 			defer resp.Body.Close()

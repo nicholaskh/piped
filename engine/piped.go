@@ -22,13 +22,17 @@ func NewPiped(config *config.PipedConfig) *Piped {
 	this.server = server.NewTcpServer("piped")
 	this.serverStats = NewServerStats()
 
-	var maxInterval time.Duration
+	var flushInterval time.Duration
 	if this.config.Stats.StatsCountInterval > this.config.Stats.ElapsedCountInterval {
-		maxInterval = this.config.Stats.StatsCountInterval
+		flushInterval = this.config.Stats.StatsCountInterval
 	} else {
-		maxInterval = this.config.Stats.ElapsedCountInterval
+		flushInterval = this.config.Stats.ElapsedCountInterval
 	}
-	this.flusher = NewFlusher(this.config.Mongo, this.config.Flusher, maxInterval)
+	if flushInterval < this.config.Stats.AlarmCountInterval {
+		flushInterval = this.config.Stats.AlarmCountInterval
+	}
+
+	this.flusher = NewFlusher(this.config.Mongo, this.config.Flusher, flushInterval)
 	this.alarmer = NewAlarmer(config.Alarm)
 	this.clientProcessor = NewPipedClientProcessor(this.server, this.serverStats, this.flusher, this.alarmer)
 

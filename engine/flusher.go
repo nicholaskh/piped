@@ -75,18 +75,21 @@ func (this *Flusher) Serv() {
 }
 
 func (this *Flusher) flushStats() {
-	purgeTs := time.Now().Truncate(this.purgeTime).Unix()
+	purgeTs := time.Now().Add(this.config.StatsFlushInterval * -1).Truncate(this.purgeTime).Unix()
+
 	for tag, stats := range this.stats {
 		for ts, value := range stats {
 			if ts < purgeTs {
 				delete(stats, ts)
 			} else {
-				mgoSession := this.mongoPool.Get()
-				_, err := mgoSession.DB("ffan_monitor").C("sys_stats").Upsert(bson.M{"tag": tag, "ts": ts}, bson.M{"tag": tag, "ts": ts, "value": value})
-				this.mongoPool.Put(mgoSession)
-				if err != nil {
-					log.Error("flush stats error: %s", err.Error())
-				}
+				go func() {
+					mgoSession := this.mongoPool.Get()
+					_, err := mgoSession.DB("ffan_monitor").C("sys_stats").Upsert(bson.M{"tag": tag, "ts": ts}, bson.M{"tag": tag, "ts": ts, "value": value})
+					if err != nil {
+						log.Error("flush stats error: %s", err.Error())
+					}
+					this.mongoPool.Put(mgoSession)
+				}()
 			}
 		}
 	}
