@@ -50,8 +50,16 @@ func (this *Flusher) Serv() {
 		for {
 			select {
 			case <-time.Tick(this.config.StatsFlushInterval):
-				go this.flushStats(this.stats)
-				go this.flushStats(this.alarmStats)
+				go this.flushStats(this.stats, this.config.StatsFlushInterval)
+			}
+		}
+	}()
+
+	go func() {
+		for {
+			select {
+			case <-time.Tick(this.config.AlarmStatsFlushInterval):
+				go this.flushStats(this.alarmStats, this.config.AlarmStatsFlushInterval)
 			}
 		}
 	}()
@@ -80,8 +88,8 @@ func (this *Flusher) Serv() {
 	}()
 }
 
-func (this *Flusher) flushStats(stats LogStats) {
-	purgeTs := time.Now().Add(this.config.StatsFlushInterval * -1).Truncate(this.purgeTime).Unix()
+func (this *Flusher) flushStats(stats LogStats, interval time.Duration) {
+	purgeTs := time.Now().Add(interval * -1).Truncate(this.purgeTime).Unix()
 
 	mgoSession := this.mongoPool.Get()
 	for tag, stats := range stats {

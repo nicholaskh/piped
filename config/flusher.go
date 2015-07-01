@@ -8,7 +8,8 @@ import (
 )
 
 type FlusherConfig struct {
-	StatsFlushInterval time.Duration
+	StatsFlushInterval      time.Duration
+	AlarmStatsFlushInterval time.Duration
 
 	LogFlushType     int
 	LogFlushInterval time.Duration
@@ -16,6 +17,7 @@ type FlusherConfig struct {
 
 func (this *FlusherConfig) LoadConfig(cf *conf.Conf) {
 	this.StatsFlushInterval = cf.Duration("stats_flush_interval", time.Second*5)
+	this.AlarmStatsFlushInterval = cf.Duration("alarm_stats_flush_interval", time.Minute)
 	this.LogFlushType = cf.Int("log_flush_type", LOG_FLUSH_TYPE_INTERVAL)
 	this.LogFlushInterval = cf.Duration("log_flush_interval", time.Second)
 }
