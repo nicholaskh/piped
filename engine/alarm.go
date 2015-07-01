@@ -69,7 +69,7 @@ func (this *Alarmer) sendSmsAlarm(sms *Sms) error {
 		if err != nil {
 			log.Error(err.Error())
 		}
-		log.Info(string(body))
+		log.Debug(string(body))
 	}
 	return nil
 }
