@@ -251,7 +251,11 @@ func (this *LogProc) filterUri(uri string) (uriFiltered string) {
 		strings.HasSuffix(uri, ".js") ||
 		strings.HasSuffix(uri, ".xml") ||
 		strings.HasSuffix(uri, ".rar") ||
-		strings.HasSuffix(uri, ".zip") {
+		strings.HasSuffix(uri, ".zip") ||
+		strings.HasSuffix(uri, ".txt") ||
+		strings.HasSuffix(uri, ".md5") ||
+		strings.HasSuffix(uri, ".sql") ||
+		strings.HasSuffix(uri, ".htaccess") {
 		return ""
 	}
 	if this.config.ElapsedUriPathPrefix != nil {
