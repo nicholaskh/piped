@@ -36,7 +36,8 @@ func NewPiped(config *config.PipedConfig) *Piped {
 	this.alarmer = NewAlarmer(config.Alarm)
 	this.clientProcessor = NewPipedClientProcessor(this.server, this.serverStats, this.flusher, this.alarmer)
 
-	this.flusher.RegisterStats(this.clientProcessor.logProc.Stats)
+	this.flusher.RegisterStats(this.clientProcessor.logProc.ElapsedStats)
+	this.flusher.RegisterAlarmStats(this.clientProcessor.logProc.AlarmStats)
 
 	return this
 }

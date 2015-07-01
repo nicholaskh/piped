@@ -20,15 +20,17 @@ import (
 type LogStats map[string]map[int64]interface{}
 
 type LogProc struct {
-	config       *config.StatsConfig
-	Stats        LogStats
-	statsMem     LogStats
-	statsMemLock sync.Mutex
-	flusher      *Flusher
-	alarmer      *Alarmer
-	mongoConfig  *config.MongoConfig
-	appReg       *regexp.Regexp
-	statsLock    sync.Mutex
+	config           *config.StatsConfig
+	ElapsedStats     LogStats
+	AlarmStats       LogStats
+	statsMem         LogStats
+	statsMemLock     sync.Mutex
+	flusher          *Flusher
+	alarmer          *Alarmer
+	mongoConfig      *config.MongoConfig
+	appReg           *regexp.Regexp
+	elapsedStatsLock sync.Mutex
+	alarmStatsLock   sync.Mutex
 
 	emailSentTimes map[string]time.Time
 	smsSentTimes   map[string]time.Time
@@ -38,7 +40,8 @@ func NewLogProc(config *config.StatsConfig, flusher *Flusher, alarmer *Alarmer, 
 	this := new(LogProc)
 	this.config = config
 	this.mongoConfig = mongoConfig
-	this.Stats = make(LogStats)
+	this.ElapsedStats = make(LogStats)
+	this.AlarmStats = make(LogStats)
 	this.statsMem = make(LogStats)
 	this.loadStats(time.Now().Truncate(this.config.ElapsedCountInterval).Unix())
 	this.flusher = flusher
@@ -62,11 +65,11 @@ func (this *LogProc) loadStats(ts int64) {
 		tag := v["tag"].(string)
 		ts := v["ts"].(int64)
 		value := v["value"]
-		_, exists := this.Stats[tag]
+		_, exists := this.ElapsedStats[tag]
 		if !exists {
-			this.Stats[tag] = make(map[int64]interface{})
+			this.ElapsedStats[tag] = make(map[int64]interface{})
 		}
-		this.Stats[tag][ts] = value
+		this.ElapsedStats[tag][ts] = value
 	}
 }
 
@@ -129,12 +132,12 @@ func (this *LogProc) Process(app, data []byte) {
 			this.statsMem[tag][minute] = currentCount
 			this.statsMemLock.Unlock()
 			if currentCount >= this.config.MacThreshold {
-				this.statsLock.Lock()
-				if _, exists := this.Stats[tag]; !exists {
-					this.Stats[tag] = make(map[int64]interface{})
+				this.alarmStatsLock.Lock()
+				if _, exists := this.AlarmStats[tag]; !exists {
+					this.AlarmStats[tag] = make(map[int64]interface{})
 				}
-				this.Stats[tag][minute] = currentCount
-				this.statsLock.Unlock()
+				this.AlarmStats[tag][minute] = currentCount
+				this.alarmStatsLock.Unlock()
 				this.enqueueEmailAlarm("mac", mac, minuteTime.Format("2006-01-02 15:04:05"), currentCount)
 				this.enqueueSmsAlarm("mac", mac, minuteTime.Format("2006-01-02 15:04:05"), currentCount)
 			}
@@ -153,12 +156,12 @@ func (this *LogProc) Process(app, data []byte) {
 			this.statsMem[tag][minute] = currentCount
 			this.statsMemLock.Unlock()
 			if currentCount >= this.config.PhoneThreshold {
-				this.statsLock.Lock()
-				if _, exists := this.Stats[tag]; !exists {
-					this.Stats[tag] = make(map[int64]interface{})
+				this.alarmStatsLock.Lock()
+				if _, exists := this.AlarmStats[tag]; !exists {
+					this.AlarmStats[tag] = make(map[int64]interface{})
 				}
-				this.Stats[tag][minute] = currentCount
-				this.statsLock.Unlock()
+				this.AlarmStats[tag][minute] = currentCount
+				this.alarmStatsLock.Unlock()
 				this.enqueueEmailAlarm("phone", phone, minuteTime.Format("2006-01-02 15:04:05"), currentCount)
 				this.enqueueSmsAlarm("phone", phone, minuteTime.Format("2006-01-02 15:04:05"), currentCount)
 			}
@@ -168,35 +171,23 @@ func (this *LogProc) Process(app, data []byte) {
 	switch tag {
 	case TAG_APACHE_404, TAG_APACHE_500, TAG_NGINX_404, TAG_NGINX_500:
 		hr := time.Now().Truncate(this.config.StatsCountInterval).Unix()
-		_, exists := this.Stats[tag]
+		_, exists := this.ElapsedStats[tag]
 		if !exists {
-			this.Stats[tag] = make(map[int64]interface{})
-			this.Stats[tag][hr] = 0
+			this.ElapsedStats[tag] = make(map[int64]interface{})
+			this.ElapsedStats[tag][hr] = 0
 		}
 		var value int
-		valueI, exists := this.Stats[tag][hr]
+		valueI, exists := this.ElapsedStats[tag][hr]
 		if !exists {
 			value = 0
 		} else {
 			value = valueI.(int)
 		}
-		this.Stats[tag][hr] = value + 1
+		this.ElapsedStats[tag][hr] = value + 1
 	case TAG_APP:
 		//store to the db
 		if strings.HasPrefix(logg, "NOTICE") {
 			//doing statistic of elapsed
-			/**
-			subMatch := this.appReg.FindAllStringSubmatch(logg, -1)
-			if len(subMatch) < 1 || len(subMatch[0]) < 3 {
-				log.Warn("elapsed log format error: %s", logg)
-				break
-			}
-			uri := subMatch[0][1]
-			if uri = this.filterUri(uri); uri == "" {
-				return
-			}
-			elapsed, _ := strconv.ParseFloat(subMatch[0][2], 64)
-			*/
 			logPart := strings.Split(logg, " ")
 			var elapsed float64
 			count := 0
@@ -226,25 +217,25 @@ func (this *LogProc) Process(app, data []byte) {
 			minute := time.Now().Truncate(this.config.ElapsedCountInterval).Unix()
 			tagElapsed := fmt.Sprintf("%s|%s", TAG_ELAPSED, uri)
 			tagElapsedCount := fmt.Sprintf("%s_count|%s", TAG_ELAPSED, uri)
-			this.statsLock.Lock()
-			if _, exists := this.Stats[tagElapsed]; !exists {
-				this.Stats[tagElapsed] = make(map[int64]interface{})
+			this.elapsedStatsLock.Lock()
+			if _, exists := this.ElapsedStats[tagElapsed]; !exists {
+				this.ElapsedStats[tagElapsed] = make(map[int64]interface{})
 			}
-			oElapsed, exists := this.Stats[tagElapsed][minute]
+			oElapsed, exists := this.ElapsedStats[tagElapsed][minute]
 			if !exists {
 				oElapsed = float64(0)
 			}
-			if _, exists := this.Stats[tagElapsedCount]; !exists {
-				this.Stats[tagElapsedCount] = make(map[int64]interface{})
+			if _, exists := this.ElapsedStats[tagElapsedCount]; !exists {
+				this.ElapsedStats[tagElapsedCount] = make(map[int64]interface{})
 			}
-			elapsedCountCur, exists := this.Stats[tagElapsedCount][minute]
+			elapsedCountCur, exists := this.ElapsedStats[tagElapsedCount][minute]
 			if !exists {
 				elapsedCountCur = 0
 			}
 			avgElapsed := (oElapsed.(float64)*float64(elapsedCountCur.(int)) + elapsed) / float64(elapsedCountCur.(int)+1)
-			this.Stats[tagElapsedCount][minute] = elapsedCountCur.(int) + 1
-			this.Stats[tagElapsed][minute] = avgElapsed
-			this.statsLock.Unlock()
+			this.ElapsedStats[tagElapsedCount][minute] = elapsedCountCur.(int) + 1
+			this.ElapsedStats[tagElapsed][minute] = avgElapsed
+			this.elapsedStatsLock.Unlock()
 			this.flusher.Enqueue(&Log{appStr, logg})
 		} else if strings.HasPrefix(logg, "WARNING") || strings.HasPrefix(logg, "FATAL") {
 			this.flusher.Enqueue(&Log{appStr, logg})

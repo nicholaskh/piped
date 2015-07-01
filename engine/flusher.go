@@ -14,6 +14,7 @@ import (
 type Flusher struct {
 	mongoConfig *config.MongoConfig
 	stats       LogStats
+	alarmStats  LogStats
 	config      *config.FlusherConfig
 	purgeTime   time.Duration
 	mongoPool   *db.MgoSessionPool
@@ -36,6 +37,10 @@ func (this *Flusher) RegisterStats(stats LogStats) {
 	this.stats = stats
 }
 
+func (this *Flusher) RegisterAlarmStats(stats LogStats) {
+	this.alarmStats = stats
+}
+
 func (this *Flusher) Enqueue(logg *Log) {
 	this.queue <- logg
 }
@@ -45,11 +50,12 @@ func (this *Flusher) Serv() {
 		for {
 			select {
 			case <-time.Tick(this.config.StatsFlushInterval):
-				log.Debug(this.stats)
-				this.flushStats()
+				go this.flushStats(this.stats)
+				go this.flushStats(this.alarmStats)
 			}
 		}
 	}()
+
 	go func() {
 		switch this.config.LogFlushType {
 		case LOG_FLUSH_TYPE_EACH:
@@ -74,25 +80,24 @@ func (this *Flusher) Serv() {
 	}()
 }
 
-func (this *Flusher) flushStats() {
+func (this *Flusher) flushStats(stats LogStats) {
 	purgeTs := time.Now().Add(this.config.StatsFlushInterval * -1).Truncate(this.purgeTime).Unix()
 
-	for tag, stats := range this.stats {
+	mgoSession := this.mongoPool.Get()
+	for tag, stats := range stats {
 		for ts, value := range stats {
 			if ts < purgeTs {
 				delete(stats, ts)
 			} else {
-				go func() {
-					mgoSession := this.mongoPool.Get()
-					_, err := mgoSession.DB("ffan_monitor").C("sys_stats").Upsert(bson.M{"tag": tag, "ts": ts}, bson.M{"tag": tag, "ts": ts, "value": value})
-					if err != nil {
-						log.Error("flush stats error: %s", err.Error())
-					}
-					this.mongoPool.Put(mgoSession)
-				}()
+
+				_, err := mgoSession.DB("ffan_monitor").C("sys_stats").Upsert(bson.M{"tag": tag, "ts": ts}, bson.M{"tag": tag, "ts": ts, "value": value})
+				if err != nil {
+					log.Error("flush stats error: %s", err.Error())
+				}
 			}
 		}
 	}
+	this.mongoPool.Put(mgoSession)
 }
 
 func (this *Flusher) flushLog(logg *Log) {
