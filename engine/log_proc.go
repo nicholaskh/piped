@@ -20,14 +20,15 @@ import (
 type LogStats map[string]map[int64]interface{}
 
 type LogProc struct {
-	config      *config.StatsConfig
-	Stats       LogStats
-	StatsMem    LogStats
-	flusher     *Flusher
-	alarmer     *Alarmer
-	mongoConfig *config.MongoConfig
-	appReg      *regexp.Regexp
-	statsLock   sync.Mutex
+	config       *config.StatsConfig
+	Stats        LogStats
+	statsMem     LogStats
+	statsMemLock sync.Mutex
+	flusher      *Flusher
+	alarmer      *Alarmer
+	mongoConfig  *config.MongoConfig
+	appReg       *regexp.Regexp
+	statsLock    sync.Mutex
 
 	emailSentTimes map[string]time.Time
 	smsSentTimes   map[string]time.Time
@@ -38,7 +39,7 @@ func NewLogProc(config *config.StatsConfig, flusher *Flusher, alarmer *Alarmer, 
 	this.config = config
 	this.mongoConfig = mongoConfig
 	this.Stats = make(LogStats)
-	this.StatsMem = make(LogStats)
+	this.statsMem = make(LogStats)
 	this.loadStats(time.Now().Truncate(this.config.ElapsedCountInterval).Unix())
 	this.flusher = flusher
 	this.alarmer = alarmer
@@ -116,41 +117,48 @@ func (this *LogProc) Process(app, data []byte) {
 		minute := minuteTime.Unix()
 		if mac != "" {
 			tag := fmt.Sprintf("%s|%s", uri, mac)
-			if _, exists := this.StatsMem[tag]; !exists {
-				this.StatsMem[tag] = make(map[int64]interface{})
+			this.statsMemLock.Lock()
+			if _, exists := this.statsMem[tag]; !exists {
+				this.statsMem[tag] = make(map[int64]interface{})
 			}
-			ct, exists := this.StatsMem[tag][minute]
+			ct, exists := this.statsMem[tag][minute]
 			if !exists {
 				ct = 0
 			}
 			currentCount := ct.(int) + 1
-			this.StatsMem[tag][minute] = currentCount
-			time.Sleep(time.Second * 2)
+			this.statsMem[tag][minute] = currentCount
+			this.statsMemLock.Unlock()
 			if currentCount >= this.config.MacThreshold {
+				this.statsLock.Lock()
 				if _, exists := this.Stats[tag]; !exists {
 					this.Stats[tag] = make(map[int64]interface{})
 				}
 				this.Stats[tag][minute] = currentCount
+				this.statsLock.Unlock()
 				this.enqueueEmailAlarm("mac", mac, minuteTime.Format("2006-01-02 15:04:05"), currentCount)
 				this.enqueueSmsAlarm("mac", mac, minuteTime.Format("2006-01-02 15:04:05"), currentCount)
 			}
 		}
 		if phone != "" {
 			tag := fmt.Sprintf("%s|%s", uri, phone)
-			if _, exists := this.StatsMem[tag]; !exists {
-				this.StatsMem[tag] = make(map[int64]interface{})
+			this.statsMemLock.Lock()
+			if _, exists := this.statsMem[tag]; !exists {
+				this.statsMem[tag] = make(map[int64]interface{})
 			}
-			ct, exists := this.StatsMem[tag][minute]
+			ct, exists := this.statsMem[tag][minute]
 			if !exists {
 				ct = 0
 			}
 			currentCount := ct.(int) + 1
-			this.StatsMem[tag][minute] = currentCount
+			this.statsMem[tag][minute] = currentCount
+			this.statsMemLock.Unlock()
 			if currentCount >= this.config.PhoneThreshold {
+				this.statsLock.Lock()
 				if _, exists := this.Stats[tag]; !exists {
 					this.Stats[tag] = make(map[int64]interface{})
 				}
 				this.Stats[tag][minute] = currentCount
+				this.statsLock.Unlock()
 				this.enqueueEmailAlarm("phone", phone, minuteTime.Format("2006-01-02 15:04:05"), currentCount)
 				this.enqueueSmsAlarm("phone", phone, minuteTime.Format("2006-01-02 15:04:05"), currentCount)
 			}
