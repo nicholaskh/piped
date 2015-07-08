@@ -89,7 +89,7 @@ func (this *Flusher) Serv() {
 }
 
 func (this *Flusher) flushStats(stats LogStats, interval time.Duration) {
-	purgeTs := time.Now().Add(interval * -2).Truncate(interval).Unix()
+	purgeTs := time.Now().Add(interval * -1).Truncate(this.purgeTime).Unix()
 
 	mgoSession := this.mongoPool.Get()
 	log.Info(stats)
