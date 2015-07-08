@@ -113,7 +113,6 @@ func (this *LogProc) Process(app, data []byte) {
 			}
 		}
 		if uri == "" || mac == "" && phone == "" {
-			log.Warn("wifi log format error: %s", logg)
 			return
 		}
 		minuteTime := time.Now().Truncate(this.config.AlarmCountInterval)
