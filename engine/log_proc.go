@@ -210,7 +210,6 @@ func (this *LogProc) Process(app, data []byte) {
 				}
 			}
 			if uri == "" || elapsed == 0 {
-				log.Warn("elapsed log format error: %s", logg)
 				break
 			}
 			minute := time.Now().Truncate(this.config.ElapsedCountInterval).Unix()
