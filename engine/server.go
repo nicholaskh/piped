@@ -8,6 +8,9 @@ import (
 	"github.com/nicholaskh/golib/server"
 	log "github.com/nicholaskh/log4go"
 	"github.com/nicholaskh/piped/config"
+	"github.com/nicholaskh/piped/engine/alarmer"
+	"github.com/nicholaskh/piped/engine/analyser"
+	"github.com/nicholaskh/piped/engine/flusher"
 )
 
 type PipedClientProcessor struct {
@@ -16,11 +19,11 @@ type PipedClientProcessor struct {
 	logProc     *LogProc
 }
 
-func NewPipedClientProcessor(server *server.TcpServer, serverStats *ServerStats, flusher *Flusher, alarmer *Alarmer) *PipedClientProcessor {
+func NewPipedClientProcessor(server *server.TcpServer, serverStats *ServerStats, flusher *flusher.Flusher, alarmer *alarmer.Alarmer, analyser *analyser.Analyser) *PipedClientProcessor {
 	this := new(PipedClientProcessor)
 	this.server = server
 	this.serverStats = serverStats
-	this.logProc = NewLogProc(config.PipedConf.Stats, flusher, alarmer, config.PipedConf.Mongo)
+	this.logProc = NewLogProc(flusher, alarmer, analyser, config.PipedConf.Mongo)
 
 	return this
 }

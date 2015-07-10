@@ -24,10 +24,10 @@ type PipedConfig struct {
 
 	UdpPort int
 
-	Mongo   *MongoConfig
-	Flusher *FlusherConfig
-	Stats   *StatsConfig
-	Alarm   *AlarmConfig
+	Mongo    *MongoConfig
+	Flusher  *FlusherConfig
+	Alarm    *AlarmConfig
+	Analyser *AnalyserConfig
 }
 
 func (this *PipedConfig) LoadConfig(cf *conf.Conf) {
@@ -61,17 +61,17 @@ func (this *PipedConfig) LoadConfig(cf *conf.Conf) {
 	}
 	this.Flusher.LoadConfig(section)
 
-	this.Stats = new(StatsConfig)
-	section, err = cf.Section("stats")
-	if err != nil {
-		panic("Stats config not found")
-	}
-	this.Stats.LoadConfig(section)
-
 	this.Alarm = new(AlarmConfig)
 	section, err = cf.Section("alarm")
 	if err != nil {
 		panic("Alarm config not found")
 	}
 	this.Alarm.LoadConfig(section)
+
+	this.Analyser = new(AnalyserConfig)
+	section, err = cf.Section("analyser")
+	if err != nil {
+		panic("Analyser config not found")
+	}
+	this.Analyser.LoadConfig(section)
 }
