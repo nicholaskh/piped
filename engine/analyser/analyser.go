@@ -5,7 +5,6 @@ import (
 	"sync"
 	"time"
 
-	alog "github.com/nicholaskh/log4go"
 	"github.com/nicholaskh/piped/config"
 	"github.com/nicholaskh/piped/engine/alarmer"
 	"github.com/nicholaskh/piped/engine/flusher"
@@ -71,7 +70,6 @@ func NewAnalyser(config *config.AnalyserConfig, mongoConfig *config.MongoConfig,
 }
 
 func (this *Analyser) Enqueue(log *Log) {
-	alog.Info(log.LogLine)
 	this.queue <- log
 }
 
