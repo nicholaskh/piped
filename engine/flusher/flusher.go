@@ -12,22 +12,23 @@ import (
 )
 
 type Flusher struct {
-	mongoConfig *config.MongoConfig
-	stats       LogStats
-	alarmStats  LogStats
-	xapiStats   LogStats
-	config      *config.FlusherConfig
-	purgeTime   time.Duration
-	mongoPool   *db.MgoSessionPool
+	mongoConfig     *config.MongoConfig
+	elapsedStats    LogStats
+	wifiPortalStats LogStats
+	xapiStats       LogStats
+	webServerStats  LogStats
+	config          *config.FlusherConfig
+	analyserConfig  *config.AnalyserConfig
+	mongoPool       *db.MgoSessionPool
 
 	queue chan *Log
 }
 
-func NewFlusher(mongoConfig *config.MongoConfig, flusherConfig *config.FlusherConfig, purgeTime time.Duration) *Flusher {
+func NewFlusher(mongoConfig *config.MongoConfig, flusherConfig *config.FlusherConfig, analyserConfig *config.AnalyserConfig) *Flusher {
 	this := new(Flusher)
 	this.mongoConfig = mongoConfig
 	this.config = flusherConfig
-	this.purgeTime = purgeTime
+	this.analyserConfig = analyserConfig
 	this.queue = make(chan *Log, 100000)
 	this.mongoPool = db.NewMgoSessionPool(this.mongoConfig.Addr, this.mongoConfig.Connections)
 
@@ -35,15 +36,19 @@ func NewFlusher(mongoConfig *config.MongoConfig, flusherConfig *config.FlusherCo
 }
 
 func (this *Flusher) RegisterStats(stats LogStats) {
-	this.stats = stats
+	this.elapsedStats = stats
 }
 
-func (this *Flusher) RegisterAlarmStats(stats LogStats) {
-	this.alarmStats = stats
+func (this *Flusher) RegisterWifiPortalStats(stats LogStats) {
+	this.wifiPortalStats = stats
 }
 
 func (this *Flusher) RegisterXapiStats(stats LogStats) {
 	this.xapiStats = stats
+}
+
+func (this *Flusher) RegisterWebServerStats(stats LogStats) {
+	this.webServerStats = stats
 }
 
 func (this *Flusher) Enqueue(logg *Log) {
@@ -51,32 +56,10 @@ func (this *Flusher) Enqueue(logg *Log) {
 }
 
 func (this *Flusher) Serv() {
-	go func() {
-		for {
-			select {
-			case <-time.Tick(this.config.StatsFlushInterval):
-				this.flushStats(this.stats, this.config.StatsFlushInterval)
-			}
-		}
-	}()
-
-	go func() {
-		for {
-			select {
-			case <-time.Tick(this.config.AlarmStatsFlushInterval):
-				this.flushStats(this.alarmStats, this.config.AlarmStatsFlushInterval)
-			}
-		}
-	}()
-
-	go func() {
-		for {
-			select {
-			case <-time.Tick(this.config.XapiStatsFlushInterval):
-				this.flushStats(this.xapiStats, this.config.XapiStatsFlushInterval)
-			}
-		}
-	}()
+	go this.servElapsed()
+	go this.servWifiPortal()
+	go this.servXapi()
+	go this.servWebServer()
 
 	go func() {
 		switch this.config.LogFlushType {
@@ -102,24 +85,59 @@ func (this *Flusher) Serv() {
 	}()
 }
 
-func (this *Flusher) flushStats(stats LogStats, interval time.Duration) {
-	purgeTs := time.Now().Add(interval * -1).Truncate(this.purgeTime).Unix()
+func (this *Flusher) servElapsed() {
+	for {
+		select {
+		case <-time.Tick(this.config.StatsFlushInterval):
+			this.flushStats(this.elapsedStats, this.config.StatsFlushInterval, this.analyserConfig.ElapsedCountInterval)
+		}
+	}
+}
 
+func (this *Flusher) servWifiPortal() {
+	for {
+		select {
+		case <-time.Tick(this.config.WifiPortalStatsFlushInterval):
+			this.flushStats(this.wifiPortalStats, this.config.WifiPortalStatsFlushInterval, this.analyserConfig.WifiPortalCountInterval)
+		}
+	}
+}
+
+func (this *Flusher) servXapi() {
+	for {
+		select {
+		case <-time.Tick(this.config.XapiStatsFlushInterval):
+			this.flushStats(this.xapiStats, this.config.XapiStatsFlushInterval, this.analyserConfig.XapiCountInterval)
+		}
+	}
+}
+
+func (this *Flusher) servWebServer() {
+	for {
+		select {
+		case <-time.Tick(this.config.StatsFlushInterval):
+			this.flushStats(this.webServerStats, this.config.StatsFlushInterval, this.analyserConfig.WebServerCountInterval)
+		}
+	}
+}
+
+func (this *Flusher) flushStats(stats LogStats, interval time.Duration, purgeTime time.Duration) {
+	purgeTs := time.Now().Add(interval * -1).Truncate(purgeTime).Unix()
+
+	mgoSession := this.mongoPool.Get()
 	for tag, stats := range stats {
 		for ts, value := range stats {
 			if ts < purgeTs {
 				delete(stats, ts)
 			} else {
-				mgoSession := this.mongoPool.Get()
 				_, err := mgoSession.DB("ffan_monitor").C("sys_stats").Upsert(bson.M{"tag": tag, "ts": ts}, bson.M{"tag": tag, "ts": ts, "value": value})
 				if err != nil {
 					log.Error("flush stats error: %s", err.Error())
 				}
-				this.mongoPool.Put(mgoSession)
 			}
 		}
 	}
-
+	this.mongoPool.Put(mgoSession)
 }
 
 func (this *Flusher) flushLog(logStruct *Log) {

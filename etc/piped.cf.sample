@@ -16,7 +16,9 @@
 	udp_port: 14570
 	
 	flusher: {
-		stats_flush_interval: "5s"
+		stats_flush_interval: "30s"
+		wifi_portal_stats_flush_interval: "30s"
+		xapi_stats_flush_interval: "30s"
 	
 		//0: flush every entry comes
 		//1: flush between interval
@@ -35,7 +37,7 @@
 	analyser: {
 		stats_count_interval: "1h"
 		elapsed_count_interval: "5m"
-		alarm_count_interval: "1m"
+		wifi_portal_count_interval: "1m"
 		
 		// if uri matches the path prefix, use the prefix instead of the whole path
 		elapsed_uri_path_prefix: [

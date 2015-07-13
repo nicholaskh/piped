@@ -27,23 +27,24 @@ func NewPiped(config *config.PipedConfig) *Piped {
 	this.serverStats = NewServerStats()
 
 	var flushInterval time.Duration
-	if this.config.Analyser.StatsCountInterval > this.config.Analyser.ElapsedCountInterval {
-		flushInterval = this.config.Analyser.StatsCountInterval
+	if this.config.Analyser.WebServerCountInterval > this.config.Analyser.ElapsedCountInterval {
+		flushInterval = this.config.Analyser.WebServerCountInterval
 	} else {
 		flushInterval = this.config.Analyser.ElapsedCountInterval
 	}
-	if flushInterval < this.config.Analyser.AlarmCountInterval {
-		flushInterval = this.config.Analyser.AlarmCountInterval
+	if flushInterval < this.config.Analyser.WifiPortalCountInterval {
+		flushInterval = this.config.Analyser.WifiPortalCountInterval
 	}
 
-	this.flusher = flusher.NewFlusher(config.Mongo, config.Flusher, flushInterval)
+	this.flusher = flusher.NewFlusher(config.Mongo, config.Flusher, config.Analyser)
 	this.alarmer = alarmer.NewAlarmer(config.Alarm)
 	this.analyser = analyser.NewAnalyser(config.Analyser, config.Mongo, this.flusher, this.alarmer)
 	this.clientProcessor = NewPipedClientProcessor(this.server, this.serverStats, this.flusher, this.alarmer, this.analyser)
 
 	this.flusher.RegisterStats(this.analyser.ElapsedStats)
-	this.flusher.RegisterAlarmStats(this.analyser.AlarmStats)
+	this.flusher.RegisterWifiPortalStats(this.analyser.AlarmStats)
 	this.flusher.RegisterXapiStats(this.analyser.XapiStats)
+	this.flusher.RegisterWebServerStats(this.analyser.WebServerStats)
 
 	return this
 }

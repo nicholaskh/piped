@@ -57,7 +57,10 @@ func (this *LogProc) Process(app, data []byte) {
 	logStruct := &Log{string(app), tag, logg}
 	this.analyser.Enqueue(logStruct)
 
-	if tag == TAG_APP {
+	if tag == TAG_APP ||
+		tag == TAG_MEMBER_ACTIVITY ||
+		tag == TAG_MEMBER_ACTIVITY_COUPON ||
+		tag == TAG_MEMBER_COUPON {
 		this.flusher.Enqueue(logStruct)
 	}
 }
