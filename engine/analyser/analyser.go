@@ -60,6 +60,9 @@ func NewAnalyser(config *config.AnalyserConfig, mongoConfig *config.MongoConfig,
 
 	this.dedup = make(map[int64]map[string]int)
 
+	this.emailSentTimes = make(map[string]time.Time)
+	this.smsSentTimes = make(map[string]time.Time)
+
 	this.loadElapsedStats(time.Now().Truncate(this.config.ElapsedCountInterval).Unix())
 	this.loadXapiStats(time.Now().Truncate(this.config.XapiCountInterval).Unix())
 

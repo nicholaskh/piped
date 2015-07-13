@@ -3,7 +3,6 @@ package engine
 import (
 	"strings"
 	"sync"
-	"time"
 
 	log "github.com/nicholaskh/log4go"
 	"github.com/nicholaskh/piped/config"
@@ -16,18 +15,12 @@ import (
 type LogProc struct {
 	flusher  *flusher.Flusher
 	analyser *analyser.Analyser
-	alarmer  *alarmer.Alarmer
 
 	mongoConfig *config.MongoConfig
-
-	dedup map[int64]map[string]int
 
 	elapsedStatsLock sync.Mutex
 	alarmStatsLock   sync.Mutex
 	xapiStatsLock    sync.Mutex
-
-	emailSentTimes map[string]time.Time
-	smsSentTimes   map[string]time.Time
 }
 
 func NewLogProc(flusher *flusher.Flusher, alarmer *alarmer.Alarmer, analyser *analyser.Analyser, mongoConfig *config.MongoConfig) *LogProc {
@@ -37,10 +30,6 @@ func NewLogProc(flusher *flusher.Flusher, alarmer *alarmer.Alarmer, analyser *an
 	this.flusher = flusher
 	this.analyser = analyser
 
-	this.dedup = make(map[int64]map[string]int)
-
-	this.emailSentTimes = make(map[string]time.Time)
-	this.smsSentTimes = make(map[string]time.Time)
 	return this
 }
 
