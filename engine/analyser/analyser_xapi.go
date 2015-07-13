@@ -5,8 +5,33 @@ import (
 	"strings"
 	"time"
 
+	"github.com/nicholaskh/golib/db"
+	log "github.com/nicholaskh/log4go"
 	. "github.com/nicholaskh/piped/global"
+	"labix.org/v2/mgo"
+	"labix.org/v2/mgo/bson"
 )
+
+func (this *Analyser) loadXapiStats(ts int64) {
+	var result []interface{}
+	err := db.MgoSession(this.mongoConfig.Addr).DB("ffan_monitor").C("sys_stats").Find(bson.M{"ts": ts}).Select(bson.M{"_id": 0}).All(&result)
+	if err != nil && err != mgo.ErrNotFound {
+		log.Error("load sys_stats error: %s", err.Error())
+	}
+	for _, vI := range result {
+		v := vI.(bson.M)
+		tag := v["tag"].(string)
+		ts := v["ts"].(int64)
+		value := v["value"]
+		if strings.HasPrefix(tag, "ma|") {
+			_, exists := this.XapiStats[tag]
+			if !exists {
+				this.XapiStats[tag] = make(map[int64]interface{})
+			}
+			this.XapiStats[tag][ts] = value
+		}
+	}
+}
 
 func (this *Analyser) analysisXapi(logStruct *Log) {
 	logPart := strings.Split(logStruct.LogLine, " ")
@@ -39,7 +64,7 @@ func (this *Analyser) analysisXapi(logStruct *Log) {
 		this.countXapiDedup(fmt.Sprintf("%s|%s", logStruct.Tag, "xapi-total"), mobile, truncateTs)
 	}
 
-	if isRegister == "" || couponLevel == "" || responseSt == "" {
+	if isRegister == "" && couponLevel == "" && responseSt == "" {
 		return
 	}
 
@@ -80,16 +105,18 @@ func (this *Analyser) countXapiStats(tag string, truncateTs int64) {
 
 func (this *Analyser) countXapiDedup(tag, mobile string, truncateTs int64) {
 	this.dedupLock.Lock()
-	dedupTag := fmt.Sprintf("%s|%s", tag, mobile)
+	dupTag := fmt.Sprintf("%s|%s", tag, mobile)
+	dedupTag := fmt.Sprintf("%s|dedup", tag)
 	_, exists := this.dedup[truncateTs]
 	if !exists {
 		this.dedup[truncateTs] = make(map[string]int)
 	}
-	_, exists = this.dedup[truncateTs][dedupTag]
+	_, exists = this.dedup[truncateTs][dupTag]
 	if exists {
+		this.dedupLock.Unlock()
 		return
 	}
-	this.dedup[truncateTs][dedupTag] = 1
+	this.dedup[truncateTs][dupTag] = 1
 	this.dedupLock.Unlock()
 
 	this.countXapiStats(dedupTag, truncateTs)

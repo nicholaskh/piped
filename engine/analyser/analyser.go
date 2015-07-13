@@ -61,6 +61,7 @@ func NewAnalyser(config *config.AnalyserConfig, mongoConfig *config.MongoConfig,
 	this.dedup = make(map[int64]map[string]int)
 
 	this.loadElapsedStats(time.Now().Truncate(this.config.ElapsedCountInterval).Unix())
+	this.loadXapiStats(time.Now().Truncate(this.config.XapiCountInterval).Unix())
 
 	return this
 }
@@ -77,7 +78,11 @@ func (this *Analyser) Serv() {
 			case "wifi":
 				this.analysisWifiPortal(logStruct.LogLine)
 			case "xapi":
-				this.analysisXapi(logStruct)
+				if logStruct.Tag == TAG_MEMBER_ACTIVITY ||
+					logStruct.Tag == TAG_MEMBER_ACTIVITY_COUPON ||
+					logStruct.Tag == TAG_MEMBER_COUPON {
+					this.analysisXapi(logStruct)
+				}
 			}
 
 			switch logStruct.Tag {
