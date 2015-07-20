@@ -121,3 +121,11 @@ func (this *Analyser) countXapiDedup(tag, mobile string, truncateTs int64) {
 
 	this.countXapiStats(dedupTag, truncateTs)
 }
+
+func (this *Analyser) clearExpiredDupRecord(currHour time.Time) {
+	for t, _ := range this.dedup {
+		if t < currHour.Unix() {
+			delete(this.dedup, t)
+		}
+	}
+}

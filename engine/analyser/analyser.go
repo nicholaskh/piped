@@ -96,6 +96,9 @@ func (this *Analyser) Serv() {
 					this.analysisElapsed(logStruct.LogLine)
 				}
 			}
+
+		case t := <-time.Tick(this.config.XapiCountInterval):
+			this.clearExpiredDupRecord(t.Truncate(this.config.XapiCountInterval))
 		}
 	}
 }
