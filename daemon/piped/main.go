@@ -37,8 +37,6 @@ func init() {
 		etclib.Dial(config.PipedConf.EtcServers)
 		engine.LoadLocalAddr(config.PipedConf.ListenAddr)
 		engine.UnregisterEtc()
-		cs, _ := etclib.Children("/piped")
-		fmt.Println(cs)
 
 		os.Exit(0)
 	}
