@@ -9,6 +9,7 @@ import (
 	"syscall"
 	"time"
 
+	"github.com/nicholaskh/etclib"
 	"github.com/nicholaskh/golib/locking"
 	"github.com/nicholaskh/golib/server"
 	"github.com/nicholaskh/golib/signal"
@@ -24,11 +25,20 @@ func init() {
 		server.ShowVersionAndExit()
 	}
 
+	conf := server.LoadConfig(options.configFile)
+	config.PipedConf = new(config.PipedConfig)
+	config.PipedConf.LoadConfig(conf)
+
 	if options.kill {
 		if err := server.KillProcess(options.lockFile); err != nil {
 			fmt.Fprintf(os.Stderr, "stop failed: %s\n", err)
 			os.Exit(1)
 		}
+		etclib.Dial(config.PipedConf.EtcServers)
+		engine.LoadLocalAddr(config.PipedConf.ListenAddr)
+		engine.UnregisterEtc()
+		cs, _ := etclib.Children("/piped")
+		fmt.Println(cs)
 
 		os.Exit(0)
 	}
@@ -47,10 +57,6 @@ func init() {
 	signal.RegisterSignalHandler(syscall.SIGINT, func(sig os.Signal) {
 		shutdown()
 	})
-
-	conf := server.LoadConfig(options.configFile)
-	config.PipedConf = new(config.PipedConfig)
-	config.PipedConf.LoadConfig(conf)
 
 	engine.LoadLocalAddr(config.PipedConf.ListenAddr)
 }

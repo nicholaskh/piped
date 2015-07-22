@@ -24,12 +24,14 @@ func UnregisterEtc() error {
 }
 
 func LoadLocalAddr(listenAddr string) {
-	localIps := ip.LocalIpv4Addrs()
-	if len(localIps) == 0 {
-		panic("No local ip address found")
-	}
-	localAddr = localIps[0]
+	if localAddr == "" {
+		localIps := ip.LocalIpv4Addrs()
+		if len(localIps) == 0 {
+			panic("No local ip address found")
+		}
+		localAddr = localIps[0]
 
-	listenPort := strings.Split(listenAddr, ":")[1]
-	localAddr = fmt.Sprintf("%s:%s", localAddr, listenPort)
+		listenPort := strings.Split(listenAddr, ":")[1]
+		localAddr = fmt.Sprintf("%s:%s", localAddr, listenPort)
+	}
 }
