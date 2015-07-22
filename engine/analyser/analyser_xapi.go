@@ -14,7 +14,7 @@ import (
 
 func (this *Analyser) loadXapiStats(ts int64) {
 	var result []interface{}
-	err := db.MgoSession(this.mongoConfig.Addr).DB("ffan_monitor").C("sys_stats").Find(bson.M{"ts": ts}).Select(bson.M{"_id": 0}).All(&result)
+	err := db.MgoSession(this.mongoConfig.Addr, db.NewMongoInfo(this.mongoConfig.SyncTimeout, this.mongoConfig.SocketTimeout)).DB("ffan_monitor").C("sys_stats").Find(bson.M{"ts": ts}).Select(bson.M{"_id": 0}).All(&result)
 	if err != nil && err != mgo.ErrNotFound {
 		log.Error("load sys_stats error: %s", err.Error())
 	}
@@ -86,8 +86,6 @@ func (this *Analyser) analysisXapi(logStruct *Log) {
 			this.countXapiDedup(tag, mobile, truncateTs)
 		}
 	}
-
-	return
 }
 
 func (this *Analyser) countXapiStats(tag string, truncateTs int64) {
@@ -104,28 +102,22 @@ func (this *Analyser) countXapiStats(tag string, truncateTs int64) {
 }
 
 func (this *Analyser) countXapiDedup(tag, mobile string, truncateTs int64) {
-	this.dedupLock.Lock()
+	this.dedupXapiLock.Lock()
 	dupTag := fmt.Sprintf("%s|%s", tag, mobile)
 	dedupTag := fmt.Sprintf("%s|dedup", tag)
-	_, exists := this.dedup[truncateTs]
+	_, exists := this.dedupXapi[truncateTs]
 	if !exists {
-		this.dedup[truncateTs] = make(map[string]int)
+		// clear dedup since we only use it to dedup mobile in one period
+		this.dedupXapi = make(map[int64]map[string]int)
+		this.dedupXapi[truncateTs] = make(map[string]int)
 	}
-	_, exists = this.dedup[truncateTs][dupTag]
+	_, exists = this.dedupXapi[truncateTs][dupTag]
 	if exists {
-		this.dedupLock.Unlock()
+		this.dedupXapiLock.Unlock()
 		return
 	}
-	this.dedup[truncateTs][dupTag] = 1
-	this.dedupLock.Unlock()
+	this.dedupXapi[truncateTs][dupTag] = 1
+	this.dedupXapiLock.Unlock()
 
 	this.countXapiStats(dedupTag, truncateTs)
-}
-
-func (this *Analyser) clearExpiredDupRecord(currHour time.Time) {
-	for t, _ := range this.dedup {
-		if t < currHour.Unix() {
-			delete(this.dedup, t)
-		}
-	}
 }

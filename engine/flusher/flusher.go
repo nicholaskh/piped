@@ -30,7 +30,7 @@ func NewFlusher(mongoConfig *config.MongoConfig, flusherConfig *config.FlusherCo
 	this.config = flusherConfig
 	this.analyserConfig = analyserConfig
 	this.queue = make(chan *Log, 100000)
-	this.mongoPool = db.NewMgoSessionPool(this.mongoConfig.Addr, this.mongoConfig.Connections)
+	this.mongoPool = db.NewMgoSessionPool(this.mongoConfig.Addr, this.mongoConfig.Connections, db.NewMongoInfo(mongoConfig.SyncTimeout, mongoConfig.SocketTimeout))
 
 	return this
 }

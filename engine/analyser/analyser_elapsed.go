@@ -15,7 +15,7 @@ import (
 
 func (this *Analyser) loadElapsedStats(ts int64) {
 	var result []interface{}
-	err := db.MgoSession(this.mongoConfig.Addr).DB("ffan_monitor").C("sys_stats").Find(bson.M{"ts": ts}).Select(bson.M{"_id": 0}).All(&result)
+	err := db.MgoSession(this.mongoConfig.Addr, db.NewMongoInfo(this.mongoConfig.SyncTimeout, this.mongoConfig.SocketTimeout)).DB("ffan_monitor").C("sys_stats").Find(bson.M{"ts": ts}).Select(bson.M{"_id": 0}).All(&result)
 	if err != nil && err != mgo.ErrNotFound {
 		log.Error("load sys_stats error: %s", err.Error())
 	}

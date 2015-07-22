@@ -27,13 +27,13 @@ type Analyser struct {
 
 	mongoConfig *config.MongoConfig
 
-	dedup map[int64]map[string]int
+	dedupXapi map[int64]map[string]int
 
 	webServerStatsLock sync.Mutex
 	elapsedStatsLock   sync.Mutex
 	alarmStatsLock     sync.Mutex
 	xapiStatsLock      sync.Mutex
-	dedupLock          sync.Mutex
+	dedupXapiLock      sync.Mutex
 
 	emailSentTimes map[string]time.Time
 	smsSentTimes   map[string]time.Time
@@ -58,7 +58,7 @@ func NewAnalyser(config *config.AnalyserConfig, mongoConfig *config.MongoConfig,
 	this.flusher = flusher
 	this.alarmer = alarmer
 
-	this.dedup = make(map[int64]map[string]int)
+	this.dedupXapi = make(map[int64]map[string]int)
 
 	this.emailSentTimes = make(map[string]time.Time)
 	this.smsSentTimes = make(map[string]time.Time)
@@ -96,9 +96,6 @@ func (this *Analyser) Serv() {
 					this.analysisElapsed(logStruct.LogLine)
 				}
 			}
-
-		case t := <-time.Tick(this.config.XapiCountInterval):
-			this.clearExpiredDupRecord(t.Truncate(this.config.XapiCountInterval))
 		}
 	}
 }
