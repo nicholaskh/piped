@@ -1,6 +1,7 @@
 package engine
 
 import (
+	"errors"
 	"strings"
 	"sync"
 
@@ -33,12 +34,12 @@ func NewLogProc(flusher *flusher.Flusher, alarmer *alarmer.Alarmer, analyser *an
 	return this
 }
 
-func (this *LogProc) Process(app, data []byte) {
+func (this *LogProc) Process(app, data []byte) error {
 	line := string(data)
 	linePart := strings.SplitN(line, LOG_SEP, 2)
 	if len(linePart) < 2 {
 		log.Error("Wrong format: %s", line)
-		return
+		return errors.New("Wrong format")
 	}
 	tag := linePart[0]
 	logg := linePart[1]
@@ -52,4 +53,5 @@ func (this *LogProc) Process(app, data []byte) {
 		tag == TAG_MEMBER_COUPON {
 		this.flusher.Enqueue(logStruct)
 	}
+	return nil
 }

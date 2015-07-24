@@ -56,12 +56,12 @@ func (this *PipedClientProcessor) OnAccept(c *server.Client) {
 			}
 		}
 
-		go this.OnRead(app, data)
+		go this.OnRead(app, data, client)
 	}
 	client.Close()
 }
 
-func (this *PipedClientProcessor) OnRead(app, data []byte) {
+func (this *PipedClientProcessor) OnRead(app, data []byte, client *Client) {
 	var (
 		t1      time.Time
 		elapsed time.Duration
@@ -69,7 +69,10 @@ func (this *PipedClientProcessor) OnRead(app, data []byte) {
 
 	t1 = time.Now()
 
-	this.logProc.Process(app, data)
+	err := this.logProc.Process(app, data)
+	if err != nil {
+		client.Close()
+	}
 
 	elapsed = time.Since(t1)
 	this.serverStats.CallLatencies.Update(elapsed.Nanoseconds() / 1e3)
