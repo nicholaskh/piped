@@ -3,7 +3,9 @@ package engine
 import (
 	"bytes"
 	"encoding/binary"
+	"errors"
 	"io"
+	"math"
 	"net"
 
 	log "github.com/nicholaskh/log4go"
@@ -59,6 +61,9 @@ func (this *Protocol) Read() ([]byte, []byte, error) {
 
 	//app + data
 	payloadLength := int(dataLength + appLength)
+	if payloadLength > math.MaxInt64 || payloadLength < 0 {
+		return []byte{}, []byte{}, errors.New("[Protocol] Payload out of length")
+	}
 	payload := make([]byte, payloadLength)
 	err = this.ReadN(this.Conn, payload, payloadLength)
 	if err != nil && err != io.EOF {

@@ -80,6 +80,7 @@ func (this *Analyser) analysisElapsed(logLine string) {
 
 func (this *Analyser) filterUri(uri string) (uriFiltered string) {
 	if strings.HasSuffix(uri, ".html") ||
+		strings.HasSuffix(uri, ".css") ||
 		strings.HasSuffix(uri, ".png") ||
 		strings.HasSuffix(uri, ".gif") ||
 		strings.HasSuffix(uri, ".jpg") ||
