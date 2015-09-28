@@ -86,6 +86,8 @@ func (this *Analyser) Serv() {
 					logStruct.Tag == TAG_MEMBER_COUPON {
 					this.analysisXapi(logStruct)
 				}
+			case "gift":
+				this.analysisGift(logStruct)
 			}
 
 			switch logStruct.Tag {

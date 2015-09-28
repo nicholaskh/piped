@@ -49,6 +49,9 @@ func (this *Alarmer) sendEmailAlarm(email *Email) error {
 
 	msg := []byte("To: " + strings.Join(this.Config.Email.Notifiers, ";") + "\r\nFrom: " + user + ">\r\nSubject: " + email.subject + "\r\n" + content_type + "\r\n\r\n" + email.body)
 	err := smtp.SendMail(server, auth, user, this.Config.Email.Notifiers, msg)
+	if err != nil {
+		log.Warn(err)
+	}
 	return err
 }
 
